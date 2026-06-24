@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
@@ -17,7 +17,9 @@ import {
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000/api';
-const BACKEND_BASE = API_BASE.replace('/api', '');
+const configuredApiBase = import.meta.env.VITE_API_BASE || API_BASE;
+const normalizedApiBase = configuredApiBase.replace(/\/$/, '');
+const BACKEND_BASE = normalizedApiBase.replace('/api', '');
 const transition = { duration: 0.45, ease: 'easeOut' };
 
 const STEPS = [
@@ -81,11 +83,12 @@ function App() {
   const [stlCreated, setStlCreated] = useState(false);
   const [evaluation, setEvaluation] = useState(emptyEvaluation);
   const [error, setError] = useState('');
+  const [health, setHealth] = useState({ status: 'checking' });
 
   const functions = useMemo(() => uniqueFunctions(breakdown), [breakdown]);
 
   const requestJson = async (endpoint, payload) => {
-    const res = await fetch(`${API_BASE}/${endpoint}`, {
+    const res = await fetch(`${normalizedApiBase}/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -96,6 +99,18 @@ function App() {
     }
     return res.json();
   };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${normalizedApiBase}/health`, { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error('Backend unavailable');
+        return res.json();
+      })
+      .then((data) => setHealth(data))
+      .catch(() => setHealth({ status: 'offline', gemini_configured: false }));
+    return () => controller.abort();
+  }, []);
 
   const runAction = async (action) => {
     setLoading(true);
@@ -235,7 +250,10 @@ function App() {
           <span className="brand-mark">BioMimetix AI</span>
           <p>AI compass for hands-on biomimicry exploration</p>
         </div>
-        <button className="ghost-button" onClick={reset}>New cycle</button>
+        <div className="topbar-actions">
+          <ApiStatus health={health} />
+          <button className="ghost-button" onClick={reset}>New cycle</button>
+        </div>
       </header>
 
       <Timeline current={step} />
@@ -432,6 +450,17 @@ function LoadingOverlay() {
   );
 }
 
+function ApiStatus({ health }) {
+  const online = health.status === 'ok';
+  const geminiReady = Boolean(health.gemini_configured);
+  const label = online ? (geminiReady ? 'Gemini ready' : 'Gemini key missing') : 'Backend offline';
+  return (
+    <span className={`api-status ${online && geminiReady ? 'ready' : 'warn'}`}>
+      {label}
+    </span>
+  );
+}
+
 function StepHeader({ icon, eyebrow, title, children }) {
   return (
     <div className="step-header">
@@ -445,27 +474,33 @@ function StepHeader({ icon, eyebrow, title, children }) {
 
 function StepIntro({ productName, setProductName, onAnalyze }) {
   return (
-    <>
-      <StepHeader icon={<Compass />} eyebrow="Step 1" title="Product Analyse">
-        Define the product. The AI may break it down, but you choose the redesign path.
-      </StepHeader>
-      <div className="input-dock">
-        <input
-          value={productName}
-          onChange={(event) => setProductName(event.target.value)}
-          onKeyDown={(event) => event.key === 'Enter' && onAnalyze()}
-          placeholder="Helmet, running shoe, drone blade..."
-        />
-        <button onClick={onAnalyze} disabled={!productName.trim()}>
-          Analyze product <ArrowRight size={18} />
-        </button>
+    <div className="intro-layout">
+      <div>
+        <StepHeader icon={<Compass />} eyebrow="Step 1" title="Product Analyse">
+          Define the product. The AI may break it down, but you choose the redesign path.
+        </StepHeader>
+        <div className="input-dock">
+          <input
+            value={productName}
+            onChange={(event) => setProductName(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && onAnalyze()}
+            placeholder="Helmet, running shoe, drone blade..."
+          />
+          <button onClick={onAnalyze} disabled={!productName.trim()}>
+            Analyze product <ArrowRight size={18} />
+          </button>
+        </div>
+        <div className="quick-examples">
+          {['Helmet', 'Running shoe', 'Drone blade'].map((item) => (
+            <button key={item} onClick={() => setProductName(item)}>{item}</button>
+          ))}
+        </div>
       </div>
-      <div className="quick-examples">
-        {['Helmet', 'Running shoe', 'Drone blade'].map((item) => (
-          <button key={item} onClick={() => setProductName(item)}>{item}</button>
-        ))}
+      <div className="intro-visual" aria-hidden="true">
+        <img src="/images/biomimicry-bg-1.png" alt="" />
+        <img src="/images/biomimicry-bg-2.png" alt="" />
       </div>
-    </>
+    </div>
   );
 }
 

@@ -7,12 +7,25 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
-import streamlit as st
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from google.genai import Client, types
 from asknature import asknature_biomimicry_options, asknature_search
 from product_images import product_image_search
+
+
+class BackendError(RuntimeError):
+    def __init__(self, message, status_code=500):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+class MissingGeminiKeyError(BackendError):
+    def __init__(self):
+        super().__init__(
+            "GEMINI_API_KEY is missing. Add it to biomimetix/backend/.env and restart the backend.",
+            status_code=503,
+        )
 
 # --- Pydantic Data Models ---
 class DeconstructReq(BaseModel):
@@ -69,10 +82,7 @@ image_dir.mkdir(exist_ok=True)
 
 def get_gemini_client():
     if client is None:
-        st.error(
-            "GEMINI_API_KEY is missing. Add `GEMINI_API_KEY=your_key_here` to `biomimetix/backend/.env` and restart the app."
-        )
-        st.stop()
+        raise MissingGeminiKeyError()
     return client
 
 # --- Defensive Parser ---
@@ -93,15 +103,15 @@ def safe_parse_gemini(response):
 def api_error(status_code, error):
     message = str(error)
     if is_quota_error(error) or status_code == 429:
-        st.error(
+        raise BackendError(
             (
                 "Gemini quota is exhausted for the selected model. Wait for the retry window, "
                 "or enable billing / raise limits in Google AI Studio. Text uses GEMINI_MODEL; "
                 "generated visuals use GEMINI_IMAGE_MODEL."
-            )
+            ),
+            status_code=429,
         )
-    else:
-        st.error(f"An error occurred: {message} (Status: {status_code})")
+    raise BackendError(f"An error occurred: {message}", status_code=status_code)
 
 def is_quota_error(error):
     message = str(error)
@@ -113,7 +123,7 @@ def cache_name(prefix, *values):
     return f"{prefix}-{digest}.png"
 
 def image_response(filename, fallback=False):
-    return {"image_url": str(image_dir / filename), "fallback": fallback}
+    return {"image_url": f"/generated_images/{filename}", "fallback": fallback}
 
 def write_svg(filename, svg):
     path = image_dir / filename
@@ -376,7 +386,7 @@ def generate_image(prompt, filename):
                 image.save(path)
                 return image_response(filename)
         raise ValueError("Gemini did not return image data.")
-    except HTTPException:
+    except BackendError:
         raise
     except Exception as e:
         api_error(500, e)
@@ -636,153 +646,3 @@ def exploded_view(req: ExplodedViewReq):
             return ai_svg_exploded_view(req)
         api_error(500, e)
         return None
-
-# --- Streamlit UI ---
-
-st.set_page_config(page_title="Biomimetix AI", page_icon="🌿", layout="wide")
-
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background:
-            radial-gradient(ellipse at 50% -10%, rgba(127, 255, 208, 0.24), transparent 42%),
-            radial-gradient(ellipse at 90% 20%, rgba(157, 231, 111, 0.14), transparent 34%),
-            linear-gradient(145deg, #020907 0%, #062019 48%, #020b14 100%);
-        color: #e8fff1;
-    }
-    [data-testid="stHeader"] {
-        background: transparent;
-    }
-    [data-testid="stSidebar"] {
-        background: rgba(5, 21, 18, 0.82);
-    }
-    .biomimetix-hero {
-        padding: 30px;
-        border: 1px solid rgba(151, 255, 207, 0.18);
-        border-radius: 28px;
-        background: rgba(7, 28, 24, 0.74);
-        box-shadow: 0 30px 100px rgba(0, 0, 0, 0.34);
-    }
-    .biomimetix-hero h1 {
-        margin: 0 0 8px;
-        color: #e8fff1;
-        font-size: 52px;
-        line-height: 1.02;
-    }
-    .biomimetix-hero p {
-        color: rgba(232, 255, 241, 0.72);
-        font-size: 18px;
-    }
-    .biomimetix-note {
-        display: inline-block;
-        margin-top: 14px;
-        padding: 10px 14px;
-        border: 1px solid rgba(127, 255, 208, 0.34);
-        border-radius: 999px;
-        color: #7fffd0;
-        background: rgba(127, 255, 208, 0.1);
-        font-weight: 700;
-    }
-    </style>
-    <div class="biomimetix-hero">
-      <h1>BioMimetix AI</h1>
-      <p>Legacy Streamlit control surface. The full visual workflow runs in the React app at http://127.0.0.1:5173/.</p>
-      <span class="biomimetix-note">Backend reads Gemini from biomimetix/backend/.env</span>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-hero_image = Path(__file__).parents[1] / "frontend" / "public" / "images" / "biomimicry-bg-1.png"
-if hero_image.exists():
-    st.image(str(hero_image), use_container_width=True)
-
-if 'stage' not in st.session_state:
-    st.session_state.stage = 0
-
-def set_stage(stage):
-    st.session_state.stage = stage
-
-# --- STAGE 0: Product Input ---
-if st.session_state.stage == 0:
-    st.header("1. Deconstruct Product")
-    product_name = st.text_input("What product do you want to redesign?", key="product_name")
-    if st.button("Deconstruct"):
-        if product_name:
-            with st.spinner("Deconstructing product..."):
-                components = deconstruct_product(DeconstructReq(product=product_name))
-                if components:
-                    st.session_state.product = product_name
-                    st.session_state.components = components
-                    set_stage(1)
-        else:
-            st.warning("Please enter a product name.")
-
-# --- STAGE 1: Function Selection ---
-if st.session_state.stage >= 1:
-    st.header("2. Select a Function")
-    if 'components' in st.session_state:
-        components = st.session_state.components
-        st.write(f"Components of **{st.session_state.product}**:")
-
-        # Create columns for a grid-like layout
-        cols = st.columns(len(components))
-        for i, item in enumerate(components):
-            with cols[i]:
-                st.subheader(item['component'])
-                st.write(item['function'])
-                if st.button(f"Explore '{item['function']}'", key=f"fn_{i}"):
-                    st.session_state.selected_function = item['function']
-                    with st.spinner(f"Finding biological inspiration for '{item['function']}'..."):
-                        biomimicry_options = biomimetic_search(BiomimicryReq(product=st.session_state.product, function=item['function']))
-                        if biomimicry_options:
-                            st.session_state.biomimicry_options = biomimicry_options
-                            set_stage(2)
-
-# --- STAGE 2: Biomimicry Options ---
-if st.session_state.stage >= 2:
-    st.header("3. Explore Biological Strategies")
-    if 'biomimicry_options' in st.session_state:
-        st.write(f"Inspiration for **{st.session_state.selected_function}**:")
-        options = st.session_state.biomimicry_options
-
-        cols = st.columns(len(options))
-        for i, option in enumerate(options):
-            with cols[i]:
-                st.subheader(option['organism'])
-                st.write(option['rationale'])
-
-                # Display reference image
-                with st.spinner(f"Loading image for {option['organism']}..."):
-                    ref_img = biodiversity_reference(ReferenceImageReq(organism=option['organism'], function=st.session_state.selected_function))
-                    if ref_img and ref_img.get('image_url'):
-                        st.image(ref_img['image_url'], caption=f"{ref_img.get('taxon_name', option['organism'])} - {ref_img.get('source', '')}")
-
-                if st.button(f"Abstract {option['organism']}", key=f"org_{i}"):
-                    st.session_state.selected_organism = option['organism']
-                    with st.spinner(f"Abstracting principles from {option['organism']}..."):
-                        abstractions = principle_abstraction(AbstractReq(product=st.session_state.product, function=st.session_state.selected_function, organism=option['organism']))
-                        if abstractions:
-                            st.session_state.abstractions = abstractions
-                            set_stage(3)
-
-# --- STAGE 3: Abstract Principles ---
-if st.session_state.stage >= 3:
-    st.header("4. Abstract to Engineering Principles")
-    if 'abstractions' in st.session_state:
-        st.write(f"Principles from **{st.session_state.selected_organism}**:")
-        abstractions = st.session_state.abstractions
-
-        for i, principle in enumerate(abstractions['principles']):
-            st.subheader(principle['title'])
-            st.write(principle['principle'])
-            if st.button(f"Ideate with this principle", key=f"principle_{i}"):
-                st.warning("Ideation and visualization stages are not yet implemented in this Streamlit app.")
-                # To continue, you would set stage 4 and implement the UI for it.
-                # set_stage(4)
-
-if st.sidebar.button("Start Over"):
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    st.rerun()
