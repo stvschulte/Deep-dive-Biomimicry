@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="620" viewBox="0 0 900 620">
+<defs>
+  <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#dfe8c9"/></linearGradient>
+  <radialGradient id="glow" cx="58%" cy="42%" r="45%"><stop offset="0" stop-color="#f5b77d" stop-opacity="0.55"/><stop offset="1" stop-color="#f5b77d" stop-opacity="0"/></radialGradient>
+  <filter id="shadow"><feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#2f3a28" flood-opacity="0.18"/></filter>
+</defs>
+<rect width="900" height="620" fill="url(#bg)"/>
+<rect width="900" height="620" fill="url(#glow)"/>
+<g filter="url(#shadow)" opacity="0.96">
+  <ellipse cx="440" cy="330" rx="230" ry="115" fill="#6f8f52"/>
+  <circle cx="640" cy="275" r="78" fill="#8fa764"/>
+  <path d="M220 330 C120 270 92 185 135 126 C185 185 248 228 318 254 Z" fill="#5f7b4b"/>
+  <path d="M430 235 C470 165 550 135 650 145 C590 190 548 238 525 298 Z" fill="#c98f65"/>
+  <circle cx="665" cy="260" r="12" fill="#263020"/>
+  <path d="M320 355 C415 330 510 324 620 348" fill="none" stroke="#fffaf0" stroke-width="10" stroke-linecap="round" opacity="0.42"/>
+</g>
+<circle cx="560" cy="340" r="96" fill="none" stroke="#c98f65" stroke-width="10" opacity="0.72"/>
+</svg>

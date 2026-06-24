@@ -1,0 +1,26 @@
+{
+  "v1:commons:helmet": {
+    "fetched_at": 1780419934,
+    "result": {
+      "attribution": "David Ring",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/9/95/Helmet_%28clothing%29.jpg",
+      "license": "CC0",
+      "search_url": "https://commons.wikimedia.org/wiki/Special:MediaSearch?type=image&search=Helmet",
+      "source": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Helmet_(clothing).jpg",
+      "title": "Helmet"
+    }
+  },
+  "v1:commons:running shoe": {
+    "fetched_at": 1780055056,
+    "result": {
+      "attribution": "Nave do Conhecimento",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Avia_Shoes.jpg/960px-Avia_Shoes.jpg",
+      "license": "CC0",
+      "search_url": "https://commons.wikimedia.org/wiki/Special:MediaSearch?type=image&search=running+shoe",
+      "source": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Avia_Shoes.jpg",
+      "title": "Avia Shoes"
+    }
+  }
+}
