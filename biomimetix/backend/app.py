@@ -58,6 +58,11 @@ class AskNatureSearchReq(BaseModel):
 load_dotenv(Path(__file__).with_name(".env"))
 
 api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    try:
+        api_key = st.secrets.get("GEMINI_API_KEY")
+    except Exception:
+        pass
 model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 image_model_name = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
 client = Client(api_key=api_key) if api_key else None
@@ -70,7 +75,10 @@ image_dir.mkdir(exist_ok=True)
 def get_gemini_client():
     if client is None:
         st.error(
-            "GEMINI_API_KEY is missing. Add `GEMINI_API_KEY=your_key_here` to `biomimetix/backend/.env` and restart the app."
+            "**GEMINI_API_KEY is missing.**\n\n"
+            "• **Railway:** add `GEMINI_API_KEY` in your service → Variables tab\n"
+            "• **Streamlit Cloud:** add it under App settings → Secrets\n"
+            "• **Local:** add `GEMINI_API_KEY=your_key` to `biomimetix/backend/.env`"
         )
         st.stop()
     return client
