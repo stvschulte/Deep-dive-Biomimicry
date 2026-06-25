@@ -1,0 +1,17 @@
+name: Deploy to HF Spaces
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Push to HF Spaces
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git remote add hf https://Stvschulte:$HF_TOKEN@huggingface.co/spaces/Stvschulte/BioMimetix
+          git push hf main --force
