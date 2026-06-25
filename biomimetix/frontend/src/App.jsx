@@ -12,7 +12,10 @@ import {
   Printer,
   RefreshCw,
   Sparkles,
+  ThumbsDown,
+  ThumbsUp,
   Video,
+  X,
 } from 'lucide-react';
 import OrganicBackground from './OrganicBackground.jsx';
 import LandingPage from './LandingPage.jsx';
@@ -23,6 +26,14 @@ const API_BASE = '/api';
 const configuredApiBase = import.meta.env.VITE_API_BASE || API_BASE;
 const normalizedApiBase = configuredApiBase.replace(/\/$/, '');
 const BACKEND_BASE = normalizedApiBase.replace('/api', '');
+
+const HELMET_IMAGES = [
+  '/images/helmets/helmet-1.svg',
+  '/images/helmets/helmet-2.svg',
+  '/images/helmets/helmet-3.svg',
+  '/images/helmets/helmet-4.svg',
+  '/images/helmets/helmet-5.svg',
+];
 
 /* ── Framer Motion variants ── */
 const stepVariants = {
@@ -74,7 +85,8 @@ const emptyEvaluation = {
 
 const resolveImageUrl = (url) => {
   if (!url) return '';
-  return url.startsWith('http') ? url : `${BACKEND_BASE}${url}`;
+  if (url.startsWith('http') || url.startsWith('/images/')) return url;
+  return `${BACKEND_BASE}${url}`;
 };
 
 const uniqueFunctions = (items) => {
@@ -120,6 +132,13 @@ function App() {
   const [imageRedoLoading, setImageRedoLoading] = useState(false);
   const [imageRedoHint, setImageRedoHint] = useState('');
 
+  /* ── New state for about page + function actions ── */
+  const [showAbout, setShowAbout] = useState(false);
+  const [rejectedFunctions, setRejectedFunctions] = useState(new Set());
+  const [approvedFunctions, setApprovedFunctions] = useState(new Set());
+  const [helmetImageIndex, setHelmetImageIndex] = useState(0);
+  const [regenLoading, setRegenLoading] = useState(null);
+
   /* ── Step transition orchestration ── */
   const [displayedStep, setDisplayedStep]   = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -146,7 +165,10 @@ function App() {
     setIsTransitioning(false);
   }, []);
 
-  const functions = useMemo(() => uniqueFunctions(breakdown), [breakdown]);
+  const functions = useMemo(
+    () => uniqueFunctions(breakdown).filter((item) => !rejectedFunctions.has(item.function)),
+    [breakdown, rejectedFunctions],
+  );
 
   const requestJson = async (endpoint, payload) => {
     const res = await fetch(`${normalizedApiBase}/${endpoint}`, {
@@ -201,8 +223,51 @@ function App() {
       license: image.license,
     });
     setSelectedFunction(null);
+    setRejectedFunctions(new Set());
+    setApprovedFunctions(new Set());
+    setHelmetImageIndex(0);
     setStep(2);
   });
+
+  const isHelmet = () => productName.toLowerCase().includes('helmet');
+
+  const cycleHelmetImage = () => {
+    const url = HELMET_IMAGES[helmetImageIndex];
+    setProductImage({ url, source: 'Preset library', sourceUrl: null, searchUrl: null, license: null });
+    setHelmetImageIndex((helmetImageIndex + 1) % HELMET_IMAGES.length);
+  };
+
+  const handleRedoImage = (hint) => {
+    if (isHelmet()) {
+      cycleHelmetImage();
+    } else {
+      redoProductImage(hint);
+    }
+  };
+
+  const regenFunction = async (component, currentFunction) => {
+    const key = `${component}:${currentFunction}`;
+    setRegenLoading(key);
+    setError('');
+    try {
+      const data = await requestJson('regen-function', {
+        product: productName,
+        component,
+        current_function: currentFunction,
+      });
+      setBreakdown((prev) => {
+        const next = [...prev];
+        const idx = next.findIndex((bd) => bd.component === component && bd.function === currentFunction);
+        if (idx !== -1) next[idx] = { ...next[idx], function: data.function };
+        return next;
+      });
+      if (selectedFunction?.function === currentFunction) setSelectedFunction(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRegenLoading(null);
+    }
+  };
 
   const startNatureQuest = () => runAction(async () => {
     const data = await requestJson('biomimicry', {
@@ -298,13 +363,19 @@ function App() {
     }
   };
 
-  const loadExplodedView = () => runAction(async () => {
-    const data = await requestJson('exploded-view', {
-      product: productName,
-      components: breakdown.map((item) => ({ component: item.component, function: item.function })),
+  const loadExplodedView = () => {
+    if (isHelmet()) {
+      setExplodedView({ image_url: '/images/helmets/helmet-exploded.svg', fallback: true });
+      return;
+    }
+    runAction(async () => {
+      const data = await requestJson('exploded-view', {
+        product: productName,
+        components: breakdown.map((item) => ({ component: item.component, function: item.function })),
+      });
+      setExplodedView(data);
     });
-    setExplodedView(data);
-  });
+  };
 
   const reset = () => {
     skipNextTransition.current = true;
@@ -332,6 +403,10 @@ function App() {
     setExplodedView(null);
     setImageRedoHint('');
     setImageRedoLoading(false);
+    setRejectedFunctions(new Set());
+    setApprovedFunctions(new Set());
+    setHelmetImageIndex(0);
+    setRegenLoading(null);
   };
 
   return (
@@ -341,7 +416,12 @@ function App() {
       <BiomimeticDecorations />
 
       <AnimatePresence>
-        {displayedStep === 0 && <LandingPage key="landing" onEnter={() => setStep(1)} />}
+        {displayedStep === 0 && (
+          <LandingPage
+            key="landing"
+            onEnter={() => { setShowAbout(true); setStep(1); }}
+          />
+        )}
       </AnimatePresence>
 
       {/* Subtle bioluminescent membrane transition for every step advance */}
@@ -364,7 +444,12 @@ function App() {
         </div>
       </header>
 
-      {displayedStep >= 1 && <Timeline current={displayedStep} />}
+      {displayedStep >= 1 && (
+        <Timeline
+          current={showAbout ? 0 : displayedStep}
+          onStep1Click={showAbout ? () => setShowAbout(false) : null}
+        />
+      )}
       {error && <div className="error-banner">{error}</div>}
       {loading && <LoadingOverlay />}
 
@@ -380,7 +465,7 @@ function App() {
       <AnimatePresence mode="wait">
         {displayedStep >= 1 && (
         <motion.section
-          key={displayedStep}
+          key={showAbout ? 'about' : displayedStep}
           className="step-panel"
           variants={stepVariants}
           initial="initial"
@@ -388,7 +473,11 @@ function App() {
           exit="exit"
           transition={{ duration: 0.45, ease: 'easeOut' }}
         >
-          {displayedStep === 1 && (
+          {showAbout && (
+            <AboutPage onBegin={() => setShowAbout(false)} />
+          )}
+
+          {!showAbout && displayedStep === 1 && (
             <StepIntro
               productName={productName}
               setProductName={setProductName}
@@ -396,25 +485,31 @@ function App() {
             />
           )}
 
-          {displayedStep === 2 && (
+          {!showAbout && displayedStep === 2 && (
             <StepFunctions
               productName={productName}
               breakdown={breakdown}
               functions={functions}
               selectedFunction={selectedFunction}
               setSelectedFunction={setSelectedFunction}
+              approvedFunctions={approvedFunctions}
+              setApprovedFunctions={setApprovedFunctions}
+              onRejectFunction={(fn) => setRejectedFunctions((prev) => new Set([...prev, fn]))}
+              onRegenFunction={regenFunction}
+              regenLoading={regenLoading}
               productImage={productImage}
               imageRedoLoading={imageRedoLoading}
               imageRedoHint={imageRedoHint}
               setImageRedoHint={setImageRedoHint}
-              onRedoImage={redoProductImage}
+              onRedoImage={handleRedoImage}
+              isHelmet={isHelmet()}
               explodedView={explodedView}
               onLoadExplodedView={loadExplodedView}
               onContinue={startNatureQuest}
             />
           )}
 
-          {displayedStep === 3 && (
+          {!showAbout && displayedStep === 3 && (
             <StepBiomimicry
               options={biomimicryOptions}
               selectedOrganism={selectedOrganism}
@@ -426,7 +521,7 @@ function App() {
             />
           )}
 
-          {displayedStep === 4 && (
+          {!showAbout && displayedStep === 4 && (
             <StepPrinciples
               principles={principles}
               sketchPack={sketchPack}
@@ -438,7 +533,7 @@ function App() {
             />
           )}
 
-          {displayedStep === 5 && (
+          {!showAbout && displayedStep === 5 && (
             <StepIdeation
               concepts={concepts}
               selectedConcept={selectedConcept}
@@ -449,7 +544,7 @@ function App() {
             />
           )}
 
-          {displayedStep === 6 && (
+          {!showAbout && displayedStep === 6 && (
             <StepPrompt
               prompt={finalPrompt}
               promptUsed={promptUsed}
@@ -458,7 +553,7 @@ function App() {
             />
           )}
 
-          {displayedStep === 7 && (
+          {!showAbout && displayedStep === 7 && (
             <StepPrintpal
               stlCreated={stlCreated}
               setStlCreated={setStlCreated}
@@ -466,7 +561,7 @@ function App() {
             />
           )}
 
-          {displayedStep === 8 && (
+          {!showAbout && displayedStep === 8 && (
             <StepEvaluate
               evaluation={evaluation}
               setEvaluation={setEvaluation}
@@ -569,13 +664,21 @@ function BioluminescentBackground() {
   );
 }
 
-function Timeline({ current }) {
+function Timeline({ current, onStep1Click }) {
   return (
     <nav className="timeline" aria-label="Workflow progress">
       {STEPS.map((label, index) => {
         const number = index + 1;
+        const isNextUp = onStep1Click && number === 1;
         return (
-          <div key={label} className={`timeline-item ${current === number ? 'active' : ''} ${current > number ? 'done' : ''}`}>
+          <div
+            key={label}
+            className={`timeline-item ${current === number ? 'active' : ''} ${current > number ? 'done' : ''} ${isNextUp ? 'next-up' : ''}`}
+            onClick={isNextUp ? onStep1Click : undefined}
+            role={isNextUp ? 'button' : undefined}
+            tabIndex={isNextUp ? 0 : undefined}
+            onKeyDown={isNextUp ? (e) => e.key === 'Enter' && onStep1Click() : undefined}
+          >
             <span>{number}</span>
             <small>{label}</small>
           </div>
@@ -650,9 +753,16 @@ function LoadingOverlay() {
 function ApiStatus({ health }) {
   const online = health.status === 'ok';
   const geminiReady = Boolean(health.gemini_configured);
-  const label = online ? (geminiReady ? 'Gemini ready' : 'Gemini key missing') : 'API offline';
+  const claudeReady = Boolean(health.claude_configured);
+  const aiReady = geminiReady || claudeReady;
+  let label;
+  if (!online) label = 'API offline';
+  else if (geminiReady && claudeReady) label = 'Gemini + Claude ready';
+  else if (geminiReady) label = 'Gemini ready';
+  else if (claudeReady) label = 'Claude ready (text only)';
+  else label = 'AI key missing';
   return (
-    <span className={`api-status ${online && geminiReady ? 'ready' : 'warn'}`}>
+    <span className={`api-status ${online && aiReady ? 'ready' : 'warn'}`}>
       {label}
     </span>
   );
@@ -764,7 +874,7 @@ function StepIntro({ productName, setProductName, onAnalyze }) {
             value={productName}
             onChange={(event) => setProductName(event.target.value)}
             onKeyDown={(event) => event.key === 'Enter' && onAnalyze()}
-            placeholder="Helmet, running shoe, drone blade..."
+            placeholder="Type your product name..."
             autoFocus
           />
           <button className="ripple-btn" onClick={onAnalyze} disabled={!productName.trim()}>
@@ -773,9 +883,7 @@ function StepIntro({ productName, setProductName, onAnalyze }) {
         </div>
 
         <div className="quick-examples">
-          {['Helmet', 'Running shoe', 'Drone blade', 'Bicycle frame', 'Water bottle'].map((item) => (
-            <button key={item} onClick={() => setProductName(item)}>{item}</button>
-          ))}
+          <button onClick={() => setProductName('Cycling Helmet')}>Cycling Helmet</button>
         </div>
       </div>
     </div>
@@ -784,13 +892,15 @@ function StepIntro({ productName, setProductName, onAnalyze }) {
 
 function StepFunctions({
   productName, breakdown, functions, selectedFunction, setSelectedFunction,
-  productImage, imageRedoLoading, imageRedoHint, setImageRedoHint, onRedoImage,
+  approvedFunctions, setApprovedFunctions, onRejectFunction, onRegenFunction, regenLoading,
+  productImage, imageRedoLoading, imageRedoHint, setImageRedoHint, onRedoImage, isHelmet,
   explodedView, onLoadExplodedView, onContinue,
 }) {
   return (
     <>
       <StepHeader icon={<Box />} eyebrow="Step 2" title={`${productName} — Functions`}>
-        AI-suggested breakdown. Click a function card to select the one you want to redesign through nature.
+        Approve the functions you want to explore, reject ones that don't fit, or refresh for alternatives.
+        Select one function to continue to the Nature Quest.
       </StepHeader>
 
       <div className="product-functions-layout">
@@ -820,19 +930,21 @@ function StepFunctions({
 
           <div className="image-redo-panel">
             <span className="image-redo-label">Not the right image?</span>
-            <input
-              className="image-redo-input"
-              value={imageRedoHint}
-              onChange={(e) => setImageRedoHint(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && onRedoImage(imageRedoHint)}
-              placeholder={`e.g. "sport ${productName.toLowerCase()}", "modern design"`}
-            />
+            {!isHelmet && (
+              <input
+                className="image-redo-input"
+                value={imageRedoHint}
+                onChange={(e) => setImageRedoHint(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onRedoImage(imageRedoHint)}
+                placeholder={`e.g. "sport ${productName.toLowerCase()}", "modern design"`}
+              />
+            )}
             <button
               className="image-redo-btn"
               onClick={() => onRedoImage(imageRedoHint)}
               disabled={imageRedoLoading}
             >
-              <RefreshCw size={13} /> Try different image
+              <RefreshCw size={13} /> {isHelmet ? 'Next helmet image' : 'Try different image'}
             </button>
           </div>
         </div>
@@ -840,18 +952,32 @@ function StepFunctions({
         {/* ── Right: function suggestion cards ── */}
         <div className="product-functions-cards">
           <p className="functions-hint">
-            <Sparkles size={13} /> AI suggestions — pick one to explore through nature
+            <Sparkles size={13} /> AI-suggested functions — approve, reject or refresh each one
           </p>
           <motion.div className="card-grid" variants={containerVariants} initial="initial" animate="animate">
-            {functions.map((item) => (
-              <ChoiceCard
-                key={`${item.component}-${item.function}`}
-                active={selectedFunction?.function === item.function}
-                onClick={() => setSelectedFunction(item)}
-                title={item.component}
-                text={item.function}
-              />
-            ))}
+            {functions.map((item) => {
+              const key = `${item.component}-${item.function}`;
+              const regenKey = `${item.component}:${item.function}`;
+              return (
+                <FunctionCard
+                  key={key}
+                  item={item}
+                  active={selectedFunction?.function === item.function}
+                  approved={approvedFunctions.has(item.function)}
+                  isRegenLoading={regenLoading === regenKey}
+                  onClick={() => setSelectedFunction(item)}
+                  onApprove={() => {
+                    setSelectedFunction(item);
+                    setApprovedFunctions((prev) => new Set([...prev, item.function]));
+                  }}
+                  onReject={() => {
+                    if (selectedFunction?.function === item.function) setSelectedFunction(null);
+                    onRejectFunction(item.function);
+                  }}
+                  onRefresh={() => onRegenFunction(item.component, item.function)}
+                />
+              );
+            })}
           </motion.div>
         </div>
       </div>
@@ -860,7 +986,7 @@ function StepFunctions({
       <div className="exploded-section">
         {!explodedView ? (
           <button className="ghost-button exploded-trigger" onClick={onLoadExplodedView}>
-            <Eye size={15} /> Generate exploded view
+            <Eye size={15} /> {isHelmet ? 'Show exploded view' : 'Generate exploded view'}
           </button>
         ) : (
           <div className="exploded-view-card">
@@ -1173,6 +1299,47 @@ function Question({ label, value, onChange }) {
   );
 }
 
+function FunctionCard({ item, active, approved, isRegenLoading, onClick, onApprove, onReject, onRefresh }) {
+  return (
+    <motion.div
+      className={`choice-card function-card ${active ? 'active' : ''} ${approved ? 'approved' : ''}`}
+      variants={cardVariants}
+    >
+      <button
+        className="function-card-body ripple-btn"
+        onClick={(e) => { createRipple(e); onClick?.(); }}
+      >
+        <strong>{item.component}</strong>
+        <p>{item.function}</p>
+      </button>
+      <div className="function-card-actions">
+        <button
+          className={`fn-action fn-approve ${approved ? 'fn-active' : ''}`}
+          onClick={(e) => { e.stopPropagation(); onApprove?.(); }}
+          title="Approve this function"
+        >
+          <ThumbsUp size={13} />
+        </button>
+        <button
+          className="fn-action fn-reject"
+          onClick={(e) => { e.stopPropagation(); onReject?.(); }}
+          title="Remove this function"
+        >
+          <ThumbsDown size={13} />
+        </button>
+        <button
+          className={`fn-action fn-refresh ${isRegenLoading ? 'fn-spinning' : ''}`}
+          onClick={(e) => { e.stopPropagation(); onRefresh?.(); }}
+          disabled={isRegenLoading}
+          title="Suggest an alternative function"
+        >
+          <RefreshCw size={13} />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 function ChoiceCard({ active, onClick, title, text, action }) {
   return (
     <motion.button
@@ -1199,6 +1366,88 @@ function GateAction({ ready, label, disabledLabel, onClick }) {
       >
         {ready ? label : disabledLabel} <ArrowRight size={18} />
       </button>
+    </div>
+  );
+}
+
+const METHOD_STEPS = [
+  { n: 1, title: 'Establish context', text: 'Define the problem context and physical constraints to set strict boundaries for the AI.' },
+  { n: 2, title: 'Dissect functions', text: 'Break the design into fundamental mechanical functions and select specific parameters to explore.' },
+  { n: 3, title: 'Nature Quest', text: 'Retrieve biological organisms that match your functions and complete visual quests — like studying woodpecker skull anatomy.' },
+  { n: 4, title: 'Abstract principles', text: 'Translate biological behaviours into technical engineering rules and perform mandatory offline observation tasks.' },
+  { n: 5, title: 'Ideation', text: 'Generate conceptual solutions from the abstracted rules. Force prompt re-runs, reject unfeasible ideas, and explicitly merge features.' },
+  { n: 6, title: '2D Image', text: 'Create a clean 2D visual by refining generative prompts — ensure the base geometry has no background noise and a clear orientation.' },
+  { n: 7, title: '3D Model', text: 'Convert the 2D image into a 3D model. Review the mesh for structural integrity before printing.' },
+  { n: 8, title: 'Evaluate', text: 'Assess the real-world feasibility by slicing and 3D-printing a physical prototype.' },
+];
+
+function AboutPage({ onBegin }) {
+  return (
+    <div className="about-page">
+      <motion.div
+        className="about-header"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } }}
+      >
+        <span className="about-eyebrow">Deep-dive Biomimicry</span>
+        <h1>Welcome to BioMimetix AI</h1>
+        <p className="about-intro">
+          A structured 8-step workflow that bridges digital AI inspiration with hands-on physical biomimetic design.
+          Use it during the ideation and early concept generation phases — after defining your product's core functions,
+          right before physical prototyping begins.
+        </p>
+      </motion.div>
+
+      <motion.div
+        className="about-meta-row"
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0, transition: { delay: 0.18, duration: 0.55 } }}
+      >
+        <div className="about-meta-card">
+          <span>WHEN</span>
+          <p>Ideation &amp; early concept generation — after defining core functions, before prototyping.</p>
+        </div>
+        <div className="about-meta-card">
+          <span>MINDSET</span>
+          <p>AI serves as inspiration, not a final answer. Critically evaluate every output against physical feasibility.</p>
+        </div>
+        <div className="about-meta-card">
+          <span>OUTCOME</span>
+          <p>A physically validated 3D-printed prototype, a list of abstracted biological principles, and hand-drawn observational sketches.</p>
+        </div>
+      </motion.div>
+
+      <motion.div
+        className="about-steps-grid"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1, transition: { delay: 0.32, duration: 0.6 } }}
+      >
+        {METHOD_STEPS.map((s, i) => (
+          <motion.div
+            key={s.n}
+            className="about-step-card"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0, transition: { delay: 0.36 + i * 0.055, duration: 0.42 } }}
+          >
+            <div className="about-step-num">{s.n}</div>
+            <div>
+              <strong>{s.title}</strong>
+              <p>{s.text}</p>
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      <motion.div
+        className="about-cta"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0, transition: { delay: 0.9, duration: 0.5 } }}
+      >
+        <p className="about-cta-hint">Click <strong>Step 1</strong> in the timeline above, or use the button below to begin.</p>
+        <button className="ripple-btn" onClick={(e) => { createRipple(e); onBegin(); }}>
+          Begin Step 1 — Product Analyse <ArrowRight size={18} />
+        </button>
+      </motion.div>
     </div>
   );
 }

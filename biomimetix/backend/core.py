@@ -10,6 +10,10 @@ from urllib.request import Request, urlopen
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from google.genai import Client, types
+try:
+    from anthropic import Anthropic as _AnthropicClient
+except ImportError:
+    _AnthropicClient = None
 from asknature import asknature_biomimicry_options, asknature_search
 from product_images import product_image_search
 
@@ -23,7 +27,7 @@ class BackendError(RuntimeError):
 class MissingGeminiKeyError(BackendError):
     def __init__(self):
         super().__init__(
-            "GEMINI_API_KEY is missing. Add it to the backend environment, Streamlit Secrets, or biomimetix/backend/.env and restart the app.",
+            "No AI key configured. Set GEMINI_API_KEY or ANTHROPIC_API_KEY in Railway Variables and redeploy.",
             status_code=503,
         )
 
@@ -68,24 +72,46 @@ class AskNatureSearchReq(BaseModel):
     query: str
     limit: int = 5
 
+class RegenFunctionReq(BaseModel):
+    product: str
+    component: str
+    current_function: str
+
 
 load_dotenv(Path(__file__).with_name(".env"))
 
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
+# ── Gemini (primary — text + images) ─────────────────────────────────────────
+gemini_key = os.getenv("GEMINI_API_KEY")
+if not gemini_key:
     try:
         import streamlit as st
-
-        api_key = st.secrets.get("GEMINI_API_KEY")
+        gemini_key = st.secrets.get("GEMINI_API_KEY")
     except Exception:
-        api_key = None
+        pass
+
+# ── Anthropic Claude (backup — text only) ────────────────────────────────────
+anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+if not anthropic_key:
+    try:
+        import streamlit as st
+        anthropic_key = st.secrets.get("ANTHROPIC_API_KEY")
+    except Exception:
+        pass
+
 model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 image_model_name = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
-client = Client(api_key=api_key) if api_key else None
-if client is not None:
+claude_model = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5-20251001")
+
+gemini_client = Client(api_key=gemini_key) if gemini_key else None
+anthropic_client = (_AnthropicClient(api_key=anthropic_key) if anthropic_key and _AnthropicClient else None)
+client = gemini_client  # kept for health-check backwards compat
+
+if gemini_client:
     print(f"[BioMimetix] Gemini ready — model: {model_name}", flush=True)
-else:
-    print("[BioMimetix] WARNING: GEMINI_API_KEY not found — Gemini features disabled", flush=True)
+if anthropic_client:
+    print(f"[BioMimetix] Claude ready — model: {claude_model}", flush=True)
+if not gemini_client and not anthropic_client:
+    print("[BioMimetix] WARNING: No AI key found — set GEMINI_API_KEY or ANTHROPIC_API_KEY", flush=True)
 image_dir = Path(__file__).parent / "generated_images"
 image_dir.mkdir(exist_ok=True)
 
@@ -93,9 +119,10 @@ image_dir.mkdir(exist_ok=True)
 # --- Helper Functions (mostly unchanged) ---
 
 def get_gemini_client():
-    if client is None:
+    """Returns Gemini client. Used for image generation (Claude cannot generate images)."""
+    if gemini_client is None:
         raise MissingGeminiKeyError()
-    return client
+    return gemini_client
 
 # --- Defensive Parser ---
 def safe_parse_gemini(response):
@@ -128,6 +155,34 @@ def api_error(status_code, error):
 def is_quota_error(error):
     message = str(error)
     return "RESOURCE_EXHAUSTED" in message or "429" in message or "quota" in message.lower()
+
+def _parse_json_text(text):
+    text = text.strip()
+    text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s*```$", "", text)
+    return json.loads(text)
+
+def _call_ai_text(prompt, json_mode=False):
+    """Try Gemini first; fall back to Claude for text generation."""
+    if gemini_client is not None:
+        try:
+            cfg = types.GenerateContentConfig(response_mime_type="application/json") if json_mode else None
+            response = gemini_client.models.generate_content(model=model_name, contents=prompt, config=cfg)
+            return response.text.strip()
+        except Exception as e:
+            if anthropic_client is None:
+                raise
+            print(f"[BioMimetix] Gemini text failed ({e}), trying Claude", flush=True)
+    if anthropic_client is not None:
+        system = "Return valid JSON only. No markdown code blocks, no explanation." if json_mode else ""
+        msg = anthropic_client.messages.create(
+            model=claude_model,
+            max_tokens=2048,
+            system=system,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return msg.content[0].text.strip()
+    raise MissingGeminiKeyError()
 
 def cache_name(prefix, *values):
     raw = "|".join(values).lower().encode("utf-8")
@@ -252,12 +307,7 @@ def ai_svg_exploded_view(req):
     Example object: {{"x": 260, "y": 300, "width": 150, "height": 90, "radius": 28, "rotation": -5, "color": "#9fb675"}}.
     """
     try:
-        response = get_gemini_client().models.generate_content(
-            model=model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json"),
-        )
-        return render_ai_exploded_svg(req, safe_parse_gemini(response))
+        return render_ai_exploded_svg(req, _parse_json_text(_call_ai_text(prompt, json_mode=True)))
     except Exception:
         return fallback_exploded_svg(req)
 
@@ -509,7 +559,9 @@ def sketch_pack(organism, function):
 def get_health_status():
     return {
         "status": "ok",
-        "gemini_configured": client is not None,
+        "gemini_configured": gemini_client is not None,
+        "claude_configured": anthropic_client is not None,
+        "ai_configured": gemini_client is not None or anthropic_client is not None,
         "model": model_name,
         "image_model": image_model_name,
     }
@@ -521,12 +573,7 @@ def deconstruct_product(req: DeconstructReq):
     Return ONLY a JSON array of 5 objects: {{"component": "str", "function": "str"}}.
     """
     try:
-        response = get_gemini_client().models.generate_content(
-            model=model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json"),
-        )
-        return safe_parse_gemini(response)
+        return _parse_json_text(_call_ai_text(prompt, json_mode=True))
     except Exception as e:
         if is_quota_error(e):
             return fallback_deconstruct(req.product)
@@ -556,12 +603,7 @@ def biomimetic_search(req: BiomimicryReq):
     }}.
     """
     try:
-        response = get_gemini_client().models.generate_content(
-            model=model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json"),
-        )
-        return [with_exploration_pack(option, req.function) for option in safe_parse_gemini(response)]
+        return [with_exploration_pack(opt, req.function) for opt in _parse_json_text(_call_ai_text(prompt, json_mode=True))]
     except Exception as e:
         if is_quota_error(e):
             return fallback_biomimicry(req.function)
@@ -580,12 +622,7 @@ def principle_abstraction(req: AbstractReq):
     }}.
     """
     try:
-        response = get_gemini_client().models.generate_content(
-            model=model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json"),
-        )
-        data = safe_parse_gemini(response)
+        data = _parse_json_text(_call_ai_text(prompt, json_mode=True))
         if isinstance(data, list):
             return {"principles": data, "sketch_pack": sketch_pack(req.organism, req.function)}
         data["sketch_pack"] = data.get("sketch_pack") or sketch_pack(req.organism, req.function)
@@ -603,12 +640,7 @@ def ideate_concepts(req: IdeateReq):
     Return ONLY a JSON array of 5 objects: {{"concept_name": "str", "description": "str"}}.
     """
     try:
-        response = get_gemini_client().models.generate_content(
-            model=model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json"),
-        )
-        return safe_parse_gemini(response)
+        return _parse_json_text(_call_ai_text(prompt, json_mode=True))
     except Exception as e:
         if is_quota_error(e):
             return fallback_ideate(req.product, req.principle)
@@ -623,8 +655,7 @@ def generate_prompt(req: PromptReq):
     Do NOT output JSON. Output ONLY the prompt string.
     """
     try:
-        response = get_gemini_client().models.generate_content(model=model_name, contents=prompt)
-        base_prompt = response.text.strip().replace('"', '').replace('\n', ' ')
+        base_prompt = _call_ai_text(prompt).replace('"', '').replace('\n', ' ')
         strict_constraints = "Pure white background, single object, isometric view, no shadows, high contrast silhouette, centered composition, complete object visible, no text, no labels, no hands, no people."
         final_prompt = f"{base_prompt}, {strict_constraints}"
         return {"prompt": final_prompt}
@@ -654,7 +685,7 @@ def exploded_view(req: ExplodedViewReq):
     try:
         return generate_image(prompt, filename)
     except Exception as e:
-        if is_quota_error(e):
+        if is_quota_error(e) or isinstance(e, MissingGeminiKeyError):
             return ai_svg_exploded_view(req)
         api_error(500, e)
         return None

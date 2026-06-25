@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir \
     fastapi \
     "uvicorn[standard]" \
     google-genai \
+    anthropic \
     pillow \
     python-dotenv \
     pydantic
