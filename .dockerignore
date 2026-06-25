@@ -1,0 +1,11 @@
+biomimetix/backend/venv/
+biomimetix/backend/__pycache__/
+biomimetix/backend/.env
+biomimetix/backend/generated_images/
+biomimetix/frontend/node_modules/
+biomimetix/frontend/dist/
+.git/
+.streamlit/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
