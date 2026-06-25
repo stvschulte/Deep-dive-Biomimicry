@@ -156,6 +156,10 @@ def is_quota_error(error):
     message = str(error)
     return "RESOURCE_EXHAUSTED" in message or "429" in message or "quota" in message.lower()
 
+def is_transient_error(error):
+    message = str(error)
+    return is_quota_error(error) or "503" in message or "UNAVAILABLE" in message or "high demand" in message.lower()
+
 def _parse_json_text(text):
     text = text.strip()
     text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
@@ -575,7 +579,7 @@ def deconstruct_product(req: DeconstructReq):
     try:
         return _parse_json_text(_call_ai_text(prompt, json_mode=True))
     except Exception as e:
-        if is_quota_error(e):
+        if is_transient_error(e):
             return fallback_deconstruct(req.product)
         api_error(500, e)
         return None
@@ -605,7 +609,7 @@ def biomimetic_search(req: BiomimicryReq):
     try:
         return [with_exploration_pack(opt, req.function) for opt in _parse_json_text(_call_ai_text(prompt, json_mode=True))]
     except Exception as e:
-        if is_quota_error(e):
+        if is_transient_error(e):
             return fallback_biomimicry(req.function)
         api_error(500, e)
         return None
@@ -628,7 +632,7 @@ def principle_abstraction(req: AbstractReq):
         data["sketch_pack"] = data.get("sketch_pack") or sketch_pack(req.organism, req.function)
         return data
     except Exception as e:
-        if is_quota_error(e):
+        if is_transient_error(e):
             return fallback_abstract(req.organism, req.function)
         api_error(500, e)
         return None
@@ -642,7 +646,7 @@ def ideate_concepts(req: IdeateReq):
     try:
         return _parse_json_text(_call_ai_text(prompt, json_mode=True))
     except Exception as e:
-        if is_quota_error(e):
+        if is_transient_error(e):
             return fallback_ideate(req.product, req.principle)
         api_error(500, e)
         return None
@@ -660,7 +664,7 @@ def generate_prompt(req: PromptReq):
         final_prompt = f"{base_prompt}, {strict_constraints}"
         return {"prompt": final_prompt}
     except Exception as e:
-        if is_quota_error(e):
+        if is_transient_error(e):
             return {
                 "prompt": (
                     f"{req.concept} for {req.product}, biomimetic product design, organic but functional form, "
@@ -687,5 +691,26 @@ def exploded_view(req: ExplodedViewReq):
     except Exception as e:
         if is_quota_error(e) or isinstance(e, MissingGeminiKeyError):
             return ai_svg_exploded_view(req)
+        api_error(500, e)
+        return None
+
+
+def regen_function(req: RegenFunctionReq):
+    prompt = f"""
+    For a {req.product}, the component "{req.component}" currently has the mechanical function: "{req.current_function}".
+    Suggest one alternative mechanical function description for this same component.
+    The alternative must be meaningfully different from the current description but still accurate for that component.
+    Return ONLY a JSON object: {{"component": "{req.component}", "function": "alternative function string"}}.
+    """
+    try:
+        response = get_gemini_client().models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        )
+        return safe_parse_gemini(response)
+    except Exception as e:
+        if is_quota_error(e):
+            raise BackendError("Gemini quota exhausted. Please try again later.", status_code=429)
         api_error(500, e)
         return None
