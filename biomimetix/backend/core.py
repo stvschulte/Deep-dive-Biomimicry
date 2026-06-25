@@ -158,7 +158,12 @@ def is_quota_error(error):
 
 def is_transient_error(error):
     message = str(error)
-    return is_quota_error(error) or "503" in message or "UNAVAILABLE" in message or "high demand" in message.lower()
+    status = getattr(error, 'status_code', None)
+    return (is_quota_error(error) or status == 503
+            or "503" in message or "UNAVAILABLE" in message
+            or "high demand" in message.lower()
+            or "credit balance" in message.lower()
+            or "too low" in message.lower())
 
 def _parse_json_text(text):
     text = text.strip()
@@ -167,7 +172,7 @@ def _parse_json_text(text):
     return json.loads(text)
 
 def _call_ai_text(prompt, json_mode=False):
-    """Try Gemini first; fall back to Claude for text generation."""
+    """Try Gemini first, then Claude. If both fail raise a 503 so callers use static fallback."""
     if gemini_client is not None:
         try:
             cfg = types.GenerateContentConfig(response_mime_type="application/json") if json_mode else None
@@ -176,16 +181,20 @@ def _call_ai_text(prompt, json_mode=False):
         except Exception as e:
             if anthropic_client is None:
                 raise
-            print(f"[BioMimetix] Gemini text failed ({e}), trying Claude", flush=True)
+            print(f"[BioMimetix] Gemini failed ({e}), trying Claude", flush=True)
     if anthropic_client is not None:
-        system = "Return valid JSON only. No markdown code blocks, no explanation." if json_mode else ""
-        msg = anthropic_client.messages.create(
-            model=claude_model,
-            max_tokens=2048,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return msg.content[0].text.strip()
+        try:
+            system = "Return valid JSON only. No markdown code blocks, no explanation." if json_mode else ""
+            msg = anthropic_client.messages.create(
+                model=claude_model,
+                max_tokens=2048,
+                system=system,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return msg.content[0].text.strip()
+        except Exception as e:
+            print(f"[BioMimetix] Claude also failed ({e}), using static fallback", flush=True)
+            raise BackendError(f"Both Gemini and Claude unavailable: {e}", status_code=503)
     raise MissingGeminiKeyError()
 
 def cache_name(prefix, *values):
