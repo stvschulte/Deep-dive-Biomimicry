@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 440">
+  <defs>
+    <radialGradient id="bg3" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#120e1a"/>
+      <stop offset="100%" stop-color="#07130a"/>
+    </radialGradient>
+    <radialGradient id="shell3" cx="40%" cy="30%" r="62%">
+      <stop offset="0%" stop-color="#4a2d6e"/>
+      <stop offset="60%" stop-color="#2e1a4a"/>
+      <stop offset="100%" stop-color="#160d24"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="600" height="440" fill="url(#bg3)"/>
+
+  <!-- Urban Commuter Helmet — round profile, minimal vents -->
+
+  <!-- Main shell — rounder, symmetrical -->
+  <path d="M118 300 Q100 235 120 165 Q148 88 210 60 Q265 38 322 44 Q385 54 424 112 Q458 166 456 235 Q454 285 430 310 Z"
+        fill="url(#shell3)" stroke="#9b7bc4" stroke-width="1.5" opacity="0.95"/>
+
+  <!-- Smooth surface — no aggressive vents, soft highlight -->
+  <path d="M185 72 Q248 52 316 60 Q374 70 414 112"
+        fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="6" stroke-linecap="round"/>
+  <path d="M145 140 Q240 130 350 138"
+        fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Fewer, rounder vents -->
+  <ellipse cx="185" cy="178" rx="28" ry="10" fill="none" stroke="#9b7bc4" stroke-width="3" opacity="0.7"/>
+  <ellipse cx="230" cy="210" rx="32" ry="10" fill="none" stroke="#9b7bc4" stroke-width="3" opacity="0.6"/>
+  <ellipse cx="220" cy="244" rx="28" ry="10" fill="none" stroke="#9b7bc4" stroke-width="3" opacity="0.5"/>
+
+  <!-- Reflective strip -->
+  <path d="M122 290 Q275 304 428 290" fill="none" stroke="rgba(155,123,196,0.45)" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Chin strap -->
+  <path d="M130 296 Q114 334 124 368 Q130 384 144 382 Q156 380 158 366"
+        fill="none" stroke="#9b7bc4" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  <path d="M428 296 Q442 334 432 368 Q426 384 412 382 Q400 380 398 366"
+        fill="none" stroke="#9b7bc4" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  <rect x="281" y="368" width="32" height="18" rx="4" fill="none" stroke="#9b7bc4" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Interior padding hint -->
+  <path d="M128 298 Q280 310 426 298" fill="none" stroke="rgba(155,123,196,0.2)" stroke-width="5"/>
+
+  <text x="300" y="420" text-anchor="middle" fill="rgba(155,123,196,0.6)" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" letter-spacing="0.12em">URBAN COMMUTER — ROUND PROFILE</text>
+</svg>

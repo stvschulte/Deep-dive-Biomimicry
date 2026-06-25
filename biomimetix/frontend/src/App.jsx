@@ -466,7 +466,7 @@ function App() {
         {displayedStep >= 1 && (
         <motion.section
           key={showAbout ? 'about' : displayedStep}
-          className="step-panel"
+          className={`step-panel${showAbout ? ' about-panel' : ''}`}
           variants={stepVariants}
           initial="initial"
           animate="animate"
@@ -1371,14 +1371,14 @@ function GateAction({ ready, label, disabledLabel, onClick }) {
 }
 
 const METHOD_STEPS = [
-  { n: 1, title: 'Establish context', text: 'Define the problem context and physical constraints to set strict boundaries for the AI.' },
-  { n: 2, title: 'Dissect functions', text: 'Break the design into fundamental mechanical functions and select specific parameters to explore.' },
-  { n: 3, title: 'Nature Quest', text: 'Retrieve biological organisms that match your functions and complete visual quests — like studying woodpecker skull anatomy.' },
-  { n: 4, title: 'Abstract principles', text: 'Translate biological behaviours into technical engineering rules and perform mandatory offline observation tasks.' },
-  { n: 5, title: 'Ideation', text: 'Generate conceptual solutions from the abstracted rules. Force prompt re-runs, reject unfeasible ideas, and explicitly merge features.' },
-  { n: 6, title: '2D Image', text: 'Create a clean 2D visual by refining generative prompts — ensure the base geometry has no background noise and a clear orientation.' },
-  { n: 7, title: '3D Model', text: 'Convert the 2D image into a 3D model. Review the mesh for structural integrity before printing.' },
-  { n: 8, title: 'Evaluate', text: 'Assess the real-world feasibility by slicing and 3D-printing a physical prototype.' },
+  { n: 1, title: 'Product Analyse', text: 'Define the problem context and physical constraints to set strict boundaries for the AI.' },
+  { n: 2, title: 'Product Functions', text: 'Break the design into fundamental mechanical functions and select the specific parameters you want to explore.' },
+  { n: 3, title: 'Biomimicry', text: 'Retrieve biological organisms that match your selected functions and complete visual Nature Quests, such as studying woodpecker skull anatomy.' },
+  { n: 4, title: 'Principle Abstraction', text: 'Translate biological behaviours into technical engineering rules and perform mandatory offline observation tasks.' },
+  { n: 5, title: 'Ideation', text: 'Generate conceptual solutions from the abstracted rules. Force prompt re-runs, reject unfeasible ideas, and explicitly select which features to merge.' },
+  { n: 6, title: '2D Image', text: 'Create a clean 2D visual by refining generative prompts. Ensure the base geometry has no background noise and a clear orientation.' },
+  { n: 7, title: '3D Model', text: 'Convert the 2D image into a digital 3D model and manually review the resulting mesh for structural integrity.' },
+  { n: 8, title: 'Evaluate', text: 'Assess real-world feasibility by slicing and 3D-printing a physical prototype.' },
 ];
 
 function AboutPage({ onBegin }) {
@@ -1393,8 +1393,8 @@ function AboutPage({ onBegin }) {
         <h1>Welcome to BioMimetix AI</h1>
         <p className="about-intro">
           A structured 8-step workflow that bridges digital AI inspiration with hands-on physical biomimetic design.
-          Use it during the ideation and early concept generation phases — after defining your product's core functions,
-          right before physical prototyping begins.
+          Use it during the ideation and early concept generation phases, after defining your product's core functions
+          and right before physical prototyping begins.
         </p>
       </motion.div>
 
@@ -1405,7 +1405,7 @@ function AboutPage({ onBegin }) {
       >
         <div className="about-meta-card">
           <span>WHEN</span>
-          <p>Ideation &amp; early concept generation — after defining core functions, before prototyping.</p>
+          <p>Ideation and early concept generation. Apply it after defining the core functions of your product, right before physical prototyping begins.</p>
         </div>
         <div className="about-meta-card">
           <span>MINDSET</span>
@@ -1444,8 +1444,8 @@ function AboutPage({ onBegin }) {
         animate={{ opacity: 1, y: 0, transition: { delay: 0.9, duration: 0.5 } }}
       >
         <p className="about-cta-hint">Click <strong>Step 1</strong> in the timeline above, or use the button below to begin.</p>
-        <button className="ripple-btn" onClick={(e) => { createRipple(e); onBegin(); }}>
-          Begin Step 1 — Product Analyse <ArrowRight size={18} />
+        <button className="ripple-btn about-begin-btn" onClick={(e) => { createRipple(e); onBegin(); }}>
+          Begin: Product Analyse <ArrowRight size={18} />
         </button>
       </motion.div>
     </div>

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 440">
+  <defs>
+    <radialGradient id="bg4" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#081810"/>
+      <stop offset="100%" stop-color="#07130a"/>
+    </radialGradient>
+    <radialGradient id="shell4" cx="35%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="#1a4a2a"/>
+      <stop offset="60%" stop-color="#0d2e1a"/>
+      <stop offset="100%" stop-color="#06180d"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="600" height="440" fill="url(#bg4)"/>
+
+  <!-- Aero / TT Helmet — elongated teardrop, minimal vents, rear fin -->
+
+  <!-- Main aero shell — elongated teardrop -->
+  <path d="M100 280 Q84 210 100 148 Q124 72 185 50 Q240 32 295 38 Q350 44 390 85 Q420 118 430 165 Q445 220 448 260 Q450 310 430 348 Q405 385 360 400 Q330 408 295 405 Q265 408 232 400"
+        fill="url(#shell4)" stroke="#6ed688" stroke-width="1.5" opacity="0.95"/>
+
+  <!-- Elongated aero tail -->
+  <path d="M430 340 Q455 375 448 400 Q444 415 432 412 Q418 408 416 394 Q412 375 430 340"
+        fill="#0d2e1a" stroke="#6ed688" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- Top gloss -->
+  <path d="M168 62 Q228 44 295 48 Q352 54 392 88"
+        fill="none" stroke="rgba(255,255,255,0.24)" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Minimal aero vents — narrow slots near front -->
+  <path d="M148 152 Q182 145 216 150" fill="none" stroke="#6ed688" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+  <path d="M140 180 Q178 173 220 178" fill="none" stroke="#6ed688" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Chin guard -->
+  <path d="M100 278 Q92 294 96 310 Q102 322 118 320"
+        fill="none" stroke="#6ed688" stroke-width="2" opacity="0.55"/>
+
+  <!-- Chin strap -->
+  <path d="M108 272 Q94 308 104 344 Q110 362 124 360 Q136 358 138 344"
+        fill="none" stroke="#6ed688" stroke-width="2" stroke-linecap="round" opacity="0.65"/>
+  <rect x="285" y="370" width="30" height="16" rx="4" fill="none" stroke="#6ed688" stroke-width="1.5" opacity="0.55"/>
+
+  <!-- Aero channel lines on surface -->
+  <path d="M160 200 Q240 185 340 195 Q390 202 420 230" fill="none" stroke="rgba(110,214,136,0.18)" stroke-width="2"/>
+  <path d="M155 230 Q240 215 345 226 Q400 234 430 260" fill="none" stroke="rgba(110,214,136,0.14)" stroke-width="2"/>
+
+  <text x="300" y="425" text-anchor="middle" fill="rgba(110,214,136,0.6)" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" letter-spacing="0.12em">TIME TRIAL — AERO TEARDROP</text>
+</svg>

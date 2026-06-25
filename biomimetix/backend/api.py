@@ -102,6 +102,11 @@ def asknature_search(req: core.AskNatureSearchReq):
     return _respond(core.asknature_search, req.query, req.limit)
 
 
+@app.post("/api/regen-function")
+def regen_function(req: core.RegenFunctionReq):
+    return _respond(core.regen_function, req)
+
+
 # Serve the React frontend for all non-API routes (must be last)
 if FRONTEND_DIST.exists():
     app.mount("/", SPAStaticFiles(directory=FRONTEND_DIST, html=True), name="spa")
