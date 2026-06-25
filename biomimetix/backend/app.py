@@ -50,7 +50,7 @@ def show_image(image_info, caption=""):
     if not url:
         return
     if url.startswith("http"):
-        st.image(url, caption=caption, use_container_width=True)
+        st.image(url, caption=caption, width="stretch")
         return
 
     path = Path(url)
@@ -65,7 +65,7 @@ def show_image(image_info, caption=""):
         if caption:
             st.caption(caption)
     else:
-        st.image(str(path), caption=caption, use_container_width=True)
+        st.image(str(path), caption=caption, width="stretch")
 
 
 def run_backend(action, *args):
@@ -206,6 +206,7 @@ st.markdown(
 )
 
 health = get_health_status()
+gemini_ready = bool(health.get("gemini_configured"))
 
 with st.sidebar:
     st.markdown("### BioMimetix AI")
@@ -220,7 +221,7 @@ with st.sidebar:
         marker = "●" if st.session_state.stage == index else "✓" if st.session_state.stage > index else "○"
         st.caption(f"{marker} {index + 1}. {name}")
     st.divider()
-    if st.button("New cycle", use_container_width=True):
+    if st.button("New cycle", width="stretch"):
         reset_app()
 
 st.markdown(
@@ -252,11 +253,13 @@ stage = st.session_state.stage
 if stage == 0:
     st.header("Step 1 — Product Analyse")
     st.write("Define a product. The app breaks it into functions, then guides you toward biological strategies.")
+    if not gemini_ready:
+        st.warning("Gemini is not configured. Add GEMINI_API_KEY in Streamlit Secrets and reboot the app before analyzing a product.")
 
     examples = st.columns(5)
     for i, value in enumerate(["Helmet", "Running shoe", "Drone blade", "Bicycle frame", "Water bottle"]):
         with examples[i]:
-            if st.button(value, key=f"example_{i}", use_container_width=True):
+            if st.button(value, key=f"example_{i}", width="stretch"):
                 st.session_state.product_input = value
 
     product_name = st.text_input(
@@ -265,7 +268,7 @@ if stage == 0:
         placeholder="Helmet, running shoe, drone blade...",
     )
 
-    if st.button("Analyze product", type="primary", disabled=not product_name.strip()):
+    if st.button("Analyze product", type="primary", disabled=(not product_name.strip() or not gemini_ready)):
         with st.spinner("Deconstructing product and finding a reference image..."):
             components = run_backend(deconstruct_product, DeconstructReq(product=product_name.strip()))
             product_image = product_image_search(product_name.strip())
@@ -295,7 +298,7 @@ elif stage == 1:
                     "Selected" if selected else "Select",
                     key=f"function_{index}",
                     type="primary" if selected else "secondary",
-                    use_container_width=True,
+                    width="stretch",
                 ):
                     st.session_state.selected_function = item["function"]
                     st.rerun()
@@ -328,7 +331,7 @@ elif stage == 2:
                 "Open" if not selected else "Opened",
                 key=f"organism_{index}",
                 type="primary" if selected else "secondary",
-                use_container_width=True,
+                width="stretch",
             ):
                 st.session_state.selected_organism = option
                 with st.spinner("Loading organism image..."):
@@ -401,7 +404,7 @@ elif stage == 3:
                 "Selected" if selected else "Select",
                 key=f"principle_{index}",
                 type="primary" if selected else "secondary",
-                use_container_width=True,
+                width="stretch",
             ):
                 st.session_state.selected_principle = principle
                 st.rerun()
@@ -443,7 +446,7 @@ elif stage == 4:
                 "Selected" if selected else "Select",
                 key=f"concept_{index}",
                 type="primary" if selected else "secondary",
-                use_container_width=True,
+                width="stretch",
             ):
                 st.session_state.selected_concept = concept
                 st.rerun()

@@ -20,3 +20,5 @@ Optional `.env`:
 ```bash
 VITE_API_BASE=http://localhost:8000/api
 ```
+
+The production build defaults to same-origin `/api`, so it works when FastAPI serves the built frontend.
