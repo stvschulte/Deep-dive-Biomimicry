@@ -52,6 +52,11 @@ def health():
     return core.get_health_status()
 
 
+@app.get("/health")
+def root_health():
+    return core.get_health_status()
+
+
 @app.post("/api/deconstruct")
 def deconstruct(req: core.DeconstructReq):
     return _respond(core.deconstruct_product, req)

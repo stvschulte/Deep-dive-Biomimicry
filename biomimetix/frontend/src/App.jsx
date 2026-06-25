@@ -19,7 +19,7 @@ import LandingPage from './LandingPage.jsx';
 import StepTransition from './StepTransition.jsx';
 import { createRipple } from './ripple.js';
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = '/api';
 const configuredApiBase = import.meta.env.VITE_API_BASE || API_BASE;
 const normalizedApiBase = configuredApiBase.replace(/\/$/, '');
 const BACKEND_BASE = normalizedApiBase.replace('/api', '');
@@ -165,7 +165,7 @@ function App() {
     const controller = new AbortController();
     fetch(`${normalizedApiBase}/health`, { signal: controller.signal })
       .then((res) => {
-        if (!res.ok) throw new Error('Backend unavailable');
+        if (!res.ok) throw new Error('API unavailable');
         return res.json();
       })
       .then((data) => setHealth(data))
@@ -650,7 +650,7 @@ function LoadingOverlay() {
 function ApiStatus({ health }) {
   const online = health.status === 'ok';
   const geminiReady = Boolean(health.gemini_configured);
-  const label = online ? (geminiReady ? 'Gemini ready' : 'Gemini key missing') : 'Backend offline';
+  const label = online ? (geminiReady ? 'Gemini ready' : 'Gemini key missing') : 'API offline';
   return (
     <span className={`api-status ${online && geminiReady ? 'ready' : 'warn'}`}>
       {label}

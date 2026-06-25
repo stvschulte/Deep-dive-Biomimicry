@@ -23,7 +23,7 @@ class BackendError(RuntimeError):
 class MissingGeminiKeyError(BackendError):
     def __init__(self):
         super().__init__(
-            "GEMINI_API_KEY is missing. Add it to biomimetix/backend/.env and restart the backend.",
+            "GEMINI_API_KEY is missing. Add it to the backend environment, Streamlit Secrets, or biomimetix/backend/.env and restart the app.",
             status_code=503,
         )
 
