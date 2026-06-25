@@ -15,10 +15,15 @@ CACHE_TTL_SECONDS = 60 * 60 * 24 * 14
 CACHE_VERSION = "v1"
 
 
-def product_image_search(product):
+def product_image_search(product, hint=""):
     product = (product or "").strip()
+    hint = (hint or "").strip()
     if not product:
         return _empty_response(product)
+
+    # Bypass cache when a hint is provided so users always get a fresh search
+    if hint:
+        return _commons_product_image(product, hint=hint)
 
     cache = _load_cache()
     cache_key = f"{CACHE_VERSION}:commons:{product.lower()}"
@@ -33,14 +38,14 @@ def product_image_search(product):
     return result
 
 
-def _commons_product_image(product):
+def _commons_product_image(product, hint=""):
     candidates = []
-    for query in _search_queries(product):
+    for query in _search_queries(product, hint=hint):
         candidates.extend(_commons_search(query))
         if len(candidates) >= 8:
             break
 
-    ranked = sorted(candidates, key=lambda item: _score_candidate(product, item), reverse=True)
+    ranked = sorted(candidates, key=lambda item: _score_candidate(hint or product, item), reverse=True)
     if not ranked:
         return _empty_response(product)
 
@@ -62,8 +67,16 @@ def _commons_product_image(product):
     }
 
 
-def _search_queries(product):
+def _search_queries(product, hint=""):
     normalized = re.sub(r"\s+", " ", product).strip()
+    if hint:
+        h = re.sub(r"\s+", " ", hint).strip()
+        return [
+            f'"{h}" filetype:bitmap',
+            f"{h} filetype:bitmap",
+            f'"{normalized}" filetype:bitmap',
+            f"{normalized} filetype:bitmap",
+        ]
     queries = [
         f'"{normalized}" filetype:bitmap',
         f"{normalized} product filetype:bitmap",

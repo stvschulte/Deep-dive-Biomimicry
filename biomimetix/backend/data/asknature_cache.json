@@ -2990,8 +2990,16 @@
     "fetched_at": 1780043475,
     "results": []
   },
+  "v2:search:cushioning and energy dissipation:5": {
+    "fetched_at": 1782343768,
+    "results": []
+  },
   "v2:search:energy absorption and shock mitigation:5": {
     "fetched_at": 1780047403,
+    "results": []
+  },
+  "v2:search:ergonomic fit and moisture wicking:5": {
+    "fetched_at": 1782344546,
     "results": []
   },
   "v2:search:impact absorption and penetration resistance.:5": {
@@ -2999,7 +3007,11 @@
     "results": []
   },
   "v2:search:impact absorption and penetration resistance:5": {
-    "fetched_at": 1780419952,
+    "fetched_at": 1782343819,
+    "results": []
+  },
+  "v2:search:impact diffusion and penetration resistance:5": {
+    "fetched_at": 1782337973,
     "results": []
   },
   "v2:search:impact dispersion and penetration resistance:5": {
@@ -3129,6 +3141,14 @@
         "usage_note": "AskNature metadata cache. Keep attribution and link users to the source; do not use cached records for AI training or republish full AskNature materials without permission from the Biomimicry Institute."
       }
     ]
+  },
+  "v2:search:protects and defines the main form:5": {
+    "fetched_at": 1782345581,
+    "results": []
+  },
+  "v2:search:secure fit and stability:5": {
+    "fetched_at": 1782343251,
+    "results": []
   },
   "v2:strategy:2707": {
     "data": {

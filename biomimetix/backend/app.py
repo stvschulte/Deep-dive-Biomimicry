@@ -58,6 +58,11 @@ class AskNatureSearchReq(BaseModel):
 load_dotenv(Path(__file__).with_name(".env"))
 
 api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    try:
+        api_key = st.secrets.get("GEMINI_API_KEY")
+    except Exception:
+        pass
 model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 image_model_name = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
 client = Client(api_key=api_key) if api_key else None
@@ -638,151 +643,444 @@ def exploded_view(req: ExplodedViewReq):
         return None
 
 # --- Streamlit UI ---
+import base64
 
-st.set_page_config(page_title="Biomimetix AI", page_icon="🌿", layout="wide")
 
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background:
-            radial-gradient(ellipse at 50% -10%, rgba(127, 255, 208, 0.24), transparent 42%),
-            radial-gradient(ellipse at 90% 20%, rgba(157, 231, 111, 0.14), transparent 34%),
-            linear-gradient(145deg, #020907 0%, #062019 48%, #020b14 100%);
-        color: #e8fff1;
-    }
-    [data-testid="stHeader"] {
-        background: transparent;
-    }
-    [data-testid="stSidebar"] {
-        background: rgba(5, 21, 18, 0.82);
-    }
-    .biomimetix-hero {
-        padding: 30px;
-        border: 1px solid rgba(151, 255, 207, 0.18);
-        border-radius: 28px;
-        background: rgba(7, 28, 24, 0.74);
-        box-shadow: 0 30px 100px rgba(0, 0, 0, 0.34);
-    }
-    .biomimetix-hero h1 {
-        margin: 0 0 8px;
-        color: #e8fff1;
-        font-size: 52px;
-        line-height: 1.02;
-    }
-    .biomimetix-hero p {
-        color: rgba(232, 255, 241, 0.72);
-        font-size: 18px;
-    }
-    .biomimetix-note {
-        display: inline-block;
-        margin-top: 14px;
-        padding: 10px 14px;
-        border: 1px solid rgba(127, 255, 208, 0.34);
-        border-radius: 999px;
-        color: #7fffd0;
-        background: rgba(127, 255, 208, 0.1);
-        font-weight: 700;
-    }
-    </style>
-    <div class="biomimetix-hero">
-      <h1>BioMimetix AI</h1>
-      <p>Legacy Streamlit control surface. The full visual workflow runs in the React app at http://127.0.0.1:5173/.</p>
-      <span class="biomimetix-note">Backend reads Gemini from biomimetix/backend/.env</span>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-hero_image = Path(__file__).parents[1] / "frontend" / "public" / "images" / "biomimicry-bg-1.png"
-if hero_image.exists():
-    st.image(str(hero_image), use_container_width=True)
-
-if 'stage' not in st.session_state:
-    st.session_state.stage = 0
-
-def set_stage(stage):
-    st.session_state.stage = stage
-
-# --- STAGE 0: Product Input ---
-if st.session_state.stage == 0:
-    st.header("1. Deconstruct Product")
-    product_name = st.text_input("What product do you want to redesign?", key="product_name")
-    if st.button("Deconstruct"):
-        if product_name:
-            with st.spinner("Deconstructing product..."):
-                components = deconstruct_product(DeconstructReq(product=product_name))
-                if components:
-                    st.session_state.product = product_name
-                    st.session_state.components = components
-                    set_stage(1)
+def _show_image(image_info, caption=""):
+    """Render an image from an HTTP URL or a local file (PNG / SVG)."""
+    if not image_info:
+        return
+    url = str(image_info.get("image_url", ""))
+    if not url:
+        return
+    try:
+        if url.startswith("http"):
+            st.image(url, caption=caption, use_container_width=True)
         else:
-            st.warning("Please enter a product name.")
+            path = Path(url)
+            if not path.exists():
+                return
+            if path.suffix.lower() == ".svg":
+                b64 = base64.b64encode(path.read_bytes()).decode()
+                html = (
+                    f'<img src="data:image/svg+xml;base64,{b64}" '
+                    f'style="width:100%;border-radius:10px">'
+                )
+                if caption:
+                    html += f'<p style="font-size:0.78em;color:#9bc;margin-top:4px">{caption}</p>'
+                st.markdown(html, unsafe_allow_html=True)
+            else:
+                st.image(str(path), caption=caption, use_container_width=True)
+    except Exception:
+        pass
 
-# --- STAGE 1: Function Selection ---
-if st.session_state.stage >= 1:
-    st.header("2. Select a Function")
-    if 'components' in st.session_state:
-        components = st.session_state.components
-        st.write(f"Components of **{st.session_state.product}**:")
 
-        # Create columns for a grid-like layout
-        cols = st.columns(len(components))
-        for i, item in enumerate(components):
-            with cols[i]:
-                st.subheader(item['component'])
-                st.write(item['function'])
-                if st.button(f"Explore '{item['function']}'", key=f"fn_{i}"):
-                    st.session_state.selected_function = item['function']
-                    with st.spinner(f"Finding biological inspiration for '{item['function']}'..."):
-                        biomimicry_options = biomimetic_search(BiomimicryReq(product=st.session_state.product, function=item['function']))
-                        if biomimicry_options:
-                            st.session_state.biomimicry_options = biomimicry_options
-                            set_stage(2)
+def _card(title, body, selected=False):
+    border = "2px solid #3fCFC4" if selected else "1px solid rgba(100,200,150,0.28)"
+    return (
+        f'<div style="padding:14px;border-radius:10px;background:rgba(7,28,24,0.74);'
+        f'border:{border};margin-bottom:10px">'
+        f'<strong style="color:#c8ffe8">{title}</strong>'
+        f'<br><small style="color:#a0c8b8">{body}</small></div>'
+    )
 
-# --- STAGE 2: Biomimicry Options ---
-if st.session_state.stage >= 2:
-    st.header("3. Explore Biological Strategies")
-    if 'biomimicry_options' in st.session_state:
-        st.write(f"Inspiration for **{st.session_state.selected_function}**:")
-        options = st.session_state.biomimicry_options
 
-        cols = st.columns(len(options))
-        for i, option in enumerate(options):
-            with cols[i]:
-                st.subheader(option['organism'])
-                st.write(option['rationale'])
+STEP_NAMES = [
+    "Product Analyse", "Functions", "Biomimicry",
+    "Principles", "Ideation", "2D Image", "3D Model", "Evaluate",
+]
 
-                # Display reference image
-                with st.spinner(f"Loading image for {option['organism']}..."):
-                    ref_img = biodiversity_reference(ReferenceImageReq(organism=option['organism'], function=st.session_state.selected_function))
-                    if ref_img and ref_img.get('image_url'):
-                        st.image(ref_img['image_url'], caption=f"{ref_img.get('taxon_name', option['organism'])} - {ref_img.get('source', '')}")
+# ── Page setup ───────────────────────────────────────────────────────────────
 
-                if st.button(f"Abstract {option['organism']}", key=f"org_{i}"):
-                    st.session_state.selected_organism = option['organism']
-                    with st.spinner(f"Abstracting principles from {option['organism']}..."):
-                        abstractions = principle_abstraction(AbstractReq(product=st.session_state.product, function=st.session_state.selected_function, organism=option['organism']))
-                        if abstractions:
-                            st.session_state.abstractions = abstractions
-                            set_stage(3)
+st.set_page_config(page_title="BioMimetix AI", page_icon="🌿", layout="wide")
 
-# --- STAGE 3: Abstract Principles ---
-if st.session_state.stage >= 3:
-    st.header("4. Abstract to Engineering Principles")
-    if 'abstractions' in st.session_state:
-        st.write(f"Principles from **{st.session_state.selected_organism}**:")
-        abstractions = st.session_state.abstractions
+st.markdown("""
+<style>
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(145deg, #020907 0%, #062019 48%, #020b14 100%);
+}
+[data-testid="stHeader"] { background: transparent; }
+section[data-testid="stSidebar"] { background: rgba(5,21,18,0.85); }
+h1, h2, h3 { color: #c8ffe8 !important; }
+p, li, label, small, .stMarkdown { color: #cce8d8 !important; }
+.stButton > button { border-radius: 8px; font-weight: 600; }
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea {
+    background: rgba(7,28,24,0.6);
+    border: 1px solid rgba(100,200,150,0.4);
+    color: #e8fff1;
+    border-radius: 8px;
+}
+.stCheckbox label { color: #c8ffe8 !important; }
+.stProgress > div > div > div { background: #3fCFC4; }
+</style>
+""", unsafe_allow_html=True)
 
-        for i, principle in enumerate(abstractions['principles']):
-            st.subheader(principle['title'])
-            st.write(principle['principle'])
-            if st.button(f"Ideate with this principle", key=f"principle_{i}"):
-                st.warning("Ideation and visualization stages are not yet implemented in this Streamlit app.")
-                # To continue, you would set stage 4 and implement the UI for it.
-                # set_stage(4)
+# ── Session-state defaults ────────────────────────────────────────────────────
 
-if st.sidebar.button("Start Over"):
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    st.rerun()
+for _k, _v in {
+    "stage": 0, "product": "", "product_image": None,
+    "components": [], "selected_function": "",
+    "biomimicry_options": [], "selected_organism_data": None,
+    "abstractions": None, "selected_principle": None,
+    "concepts": [], "selected_concept": None,
+    "final_prompt": "",
+}.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
+
+# ── Header ────────────────────────────────────────────────────────────────────
+
+_hcol1, _hcol2 = st.columns([5, 1])
+with _hcol1:
+    st.title("🌿 BioMimetix AI")
+    st.caption("AI compass for hands-on biomimicry exploration")
+with _hcol2:
+    st.write("")
+    st.write("")
+    if st.session_state.stage > 0:
+        if st.button("↺ New cycle", use_container_width=True):
+            for _k in list(st.session_state.keys()):
+                del st.session_state[_k]
+            st.rerun()
+
+# ── Progress ──────────────────────────────────────────────────────────────────
+
+_stage = st.session_state.stage
+if _stage > 0:
+    st.progress(_stage / 8)
+    st.caption(f"Step {_stage} / 8 — **{STEP_NAMES[_stage - 1]}**")
+
+# ── Context strip ─────────────────────────────────────────────────────────────
+
+if st.session_state.product:
+    _ctx = [f"**Product:** {st.session_state.product}"]
+    if st.session_state.selected_function:
+        _ctx.append(f"**Function:** {st.session_state.selected_function}")
+    if st.session_state.selected_organism_data:
+        _ctx.append(f"**Organism:** {st.session_state.selected_organism_data['organism']}")
+    if st.session_state.selected_principle:
+        _ctx.append(f"**Principle:** {st.session_state.selected_principle['title']}")
+    st.markdown(" · ".join(_ctx))
+
+st.divider()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 1 — Product Analyse
+# ═════════════════════════════════════════════════════════════════════════════
+
+if _stage == 0:
+    st.header("Step 1 — Product Analyse")
+    st.write(
+        "Nature has already solved every engineering problem you face. "
+        "Name your product — we find its biological twin."
+    )
+
+    st.caption("Quick picks:")
+    _ex_cols = st.columns(5)
+    for _i, _ex in enumerate(["Helmet", "Running shoe", "Drone blade", "Bicycle frame", "Water bottle"]):
+        with _ex_cols[_i]:
+            if st.button(_ex, key=f"ex_{_i}"):
+                st.session_state["_product_input"] = _ex
+
+    _product_name = st.text_input(
+        "Product name",
+        value=st.session_state.get("_product_input", ""),
+        placeholder="e.g. Helmet, running shoe, drone blade...",
+        label_visibility="collapsed",
+    )
+
+    if st.button("🔬 Analyze product", type="primary", disabled=not (_product_name or "").strip()):
+        with st.spinner("Deconstructing product and fetching reference image..."):
+            _components = deconstruct_product(DeconstructReq(product=_product_name.strip()))
+            _prod_image = product_image_search(_product_name.strip())
+        if _components:
+            st.session_state.product = _product_name.strip()
+            st.session_state.components = _components
+            st.session_state.product_image = _prod_image
+            if "_product_input" in st.session_state:
+                del st.session_state["_product_input"]
+            st.session_state.stage = 1
+            st.rerun()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 2 — Product Functions
+# ═════════════════════════════════════════════════════════════════════════════
+
+elif _stage == 1:
+    st.header(f"Step 2 — {st.session_state.product}: Functions")
+    st.write("AI-suggested breakdown. Click a function card to select the one you want to redesign through nature.")
+
+    _img_col, _fn_col = st.columns([1, 2])
+    with _img_col:
+        if st.session_state.product_image:
+            _show_image(st.session_state.product_image, caption=st.session_state.product)
+
+    with _fn_col:
+        _comps = st.session_state.components
+        _fn_grid = st.columns(min(3, len(_comps)))
+        for _i, _item in enumerate(_comps):
+            with _fn_grid[_i % 3]:
+                _sel = st.session_state.selected_function == _item["function"]
+                st.markdown(_card(_item["component"], _item["function"], selected=_sel), unsafe_allow_html=True)
+                if st.button(
+                    "✓ Selected" if _sel else "Select",
+                    key=f"fn_{_i}",
+                    type="primary" if _sel else "secondary",
+                    use_container_width=True,
+                ):
+                    st.session_state.selected_function = _item["function"]
+                    st.rerun()
+
+    st.write("")
+    if st.button("🌿 Start Nature Quest", type="primary", disabled=not st.session_state.selected_function):
+        with st.spinner(f"Finding biological inspiration for '{st.session_state.selected_function}'..."):
+            _bio_opts = biomimetic_search(BiomimicryReq(
+                product=st.session_state.product,
+                function=st.session_state.selected_function,
+            ))
+        if _bio_opts:
+            st.session_state.biomimicry_options = _bio_opts
+            st.session_state.selected_organism_data = None
+            st.session_state.stage = 2
+            st.rerun()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 3 — Biomimicry: Nature Quest
+# ═════════════════════════════════════════════════════════════════════════════
+
+elif _stage == 2:
+    st.header("Step 3 — Biomimicry: Nature Quest")
+    st.write("Choose one organism, explore its resources, then abstract the principle.")
+
+    _options = st.session_state.biomimicry_options
+    _sel_org = (st.session_state.selected_organism_data or {}).get("organism", "")
+
+    _org_cols = st.columns(min(5, len(_options)))
+    for _i, _opt in enumerate(_options):
+        with _org_cols[_i]:
+            _is_sel = _sel_org == _opt["organism"]
+            if st.button(
+                _opt["organism"],
+                key=f"org_select_{_i}",
+                type="primary" if _is_sel else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state.selected_organism_data = _opt
+                st.rerun()
+
+    _org_data = st.session_state.selected_organism_data
+    if _org_data:
+        st.divider()
+        _org_name = _org_data["organism"]
+
+        _img_c, _info_c = st.columns([1, 2])
+        with _img_c:
+            with st.spinner(f"Loading image for {_org_name}..."):
+                _org_img = biodiversity_reference(ReferenceImageReq(
+                    organism=_org_name,
+                    function=st.session_state.selected_function,
+                ))
+            _caption = _org_name + (f" — {_org_img.get('source', '')}" if _org_img else "")
+            _show_image(_org_img, caption=_caption)
+
+        with _info_c:
+            st.subheader(_org_name)
+            st.write(_org_data.get("rationale", ""))
+
+            _pack = _org_data.get("exploration_pack", {})
+            _watch = _pack.get("watch", [])
+            if _watch:
+                st.markdown("**📺 Watch**")
+                for _w in _watch:
+                    st.markdown(f"- [{_w['title']}]({_w['url']}) — *{_w.get('description', '')}*")
+
+            _read = _pack.get("read", [])
+            if _read:
+                st.markdown("**📖 Read**")
+                for _r in _read:
+                    st.markdown(f"- [{_r['title']}]({_r['url']}) — *{_r.get('description', '')}*")
+
+            _act = _pack.get("act", {})
+            if _act:
+                with st.expander(f"🔭 Nature Quest — {_act.get('title', 'Act')}", expanded=True):
+                    st.write(_act.get("description", ""))
+                    for _c in _act.get("checklist", []):
+                        st.markdown(f"- {_c}")
+
+        st.divider()
+        _gate = st.checkbox(
+            "I have explored these resources and made my own observations.",
+            key=f"gate_explore_{_org_name}",
+        )
+        if st.button("🔬 Abstract the principle", type="primary", disabled=not _gate):
+            with st.spinner(f"Abstracting principles from {_org_name}..."):
+                _abstractions = principle_abstraction(AbstractReq(
+                    product=st.session_state.product,
+                    function=st.session_state.selected_function,
+                    organism=_org_name,
+                ))
+            if _abstractions:
+                st.session_state.abstractions = _abstractions
+                st.session_state.selected_principle = None
+                st.session_state.stage = 3
+                st.rerun()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 4 — Principle Abstraction + Sketch Gate
+# ═════════════════════════════════════════════════════════════════════════════
+
+elif _stage == 3:
+    st.header("Step 4 — Principle Abstraction")
+    st.write("Select one abstract principle, then sketch it before ideation becomes available.")
+
+    _abstractions = st.session_state.abstractions or {}
+    _principles = _abstractions.get("principles", [])
+    _sketch_pack = _abstractions.get("sketch_pack", {})
+
+    _pr_cols = st.columns(min(3, len(_principles)))
+    for _i, _p in enumerate(_principles):
+        with _pr_cols[_i]:
+            _sel = (st.session_state.selected_principle or {}).get("title") == _p["title"]
+            st.markdown(_card(_p["title"], _p["principle"], selected=_sel), unsafe_allow_html=True)
+            if st.button(
+                "✓ Selected" if _sel else "Select",
+                key=f"pr_{_i}",
+                type="primary" if _sel else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state.selected_principle = _p
+                st.rerun()
+
+    st.divider()
+    if _sketch_pack:
+        st.subheader("✏️ " + _sketch_pack.get("title", "Sketching Assignment"))
+        st.markdown(f"**Grab pen and paper** — {_sketch_pack.get('prompt', '')}")
+        for _c in _sketch_pack.get("checks", []):
+            st.markdown(f"- {_c}")
+        st.write("")
+
+    _sketch_done = st.checkbox("Sketch completed.", key="sketch_done_gate")
+    _can_ideate = bool(st.session_state.selected_principle) and _sketch_done
+    if st.button("💡 Move to ideation", type="primary", disabled=not _can_ideate):
+        with st.spinner("Generating concepts..."):
+            _concepts = ideate_concepts(IdeateReq(
+                product=st.session_state.product,
+                principle=st.session_state.selected_principle["title"],
+            ))
+        if _concepts:
+            st.session_state.concepts = _concepts
+            st.session_state.selected_concept = None
+            st.session_state.stage = 4
+            st.rerun()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 5 — Ideation
+# ═════════════════════════════════════════════════════════════════════════════
+
+elif _stage == 4:
+    st.header("Step 5 — Ideation and Creation")
+    st.write("Select one concept. Before visualization, pause and refine what must remain physically testable.")
+
+    _concepts = st.session_state.concepts
+    _c_cols = st.columns(min(3, len(_concepts)))
+    for _i, _c in enumerate(_concepts):
+        with _c_cols[_i % 3]:
+            _sel = (st.session_state.selected_concept or {}).get("concept_name") == _c["concept_name"]
+            st.markdown(_card(_c["concept_name"], _c.get("description", ""), selected=_sel), unsafe_allow_html=True)
+            if st.button(
+                "✓ Selected" if _sel else "Select",
+                key=f"concept_{_i}",
+                type="primary" if _sel else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state.selected_concept = _c
+                st.rerun()
+
+    st.divider()
+    _refined = st.checkbox(
+        "I have mentally refined this concept and identified what should be tested physically.",
+        key="concept_refined_gate",
+    )
+    _can_prompt = bool(st.session_state.selected_concept) and _refined
+    if st.button("🎨 Generate strict 2D prompt", type="primary", disabled=not _can_prompt):
+        with st.spinner("Generating image prompt..."):
+            _result = generate_prompt(PromptReq(
+                product=st.session_state.product,
+                concept=st.session_state.selected_concept["concept_name"],
+            ))
+        if _result:
+            st.session_state.final_prompt = _result.get("prompt", "")
+            st.session_state.stage = 5
+            st.rerun()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 6 — 2D Image Prompt
+# ═════════════════════════════════════════════════════════════════════════════
+
+elif _stage == 5:
+    st.header("Step 6 — 2D Image Prompt")
+    st.write(
+        "Copy this strict prompt into your external image generator "
+        "(Midjourney, DALL-E, Stable Diffusion). Keep the output clean for 3D conversion."
+    )
+
+    st.code(st.session_state.final_prompt, language=None)
+    st.info("💡 Click the copy icon in the top-right corner of the box above to copy the prompt.")
+
+    _prompt_used = st.checkbox("I have copied or used the prompt externally.", key="prompt_used_gate")
+    if st.button("➡️ Continue to 3D pathway", type="primary", disabled=not _prompt_used):
+        st.session_state.stage = 6
+        st.rerun()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 7 — 3D Model
+# ═════════════════════════════════════════════════════════════════════════════
+
+elif _stage == 6:
+    st.header("Step 7 — 3D Model: Printpal Pathway")
+    st.write("Convert the clean 2D image into a printable model. The AI stops here; your hands take over.")
+
+    _steps_3d = [
+        ("Upload", "Take the single-object 2D image and upload it into Printpal or another image-to-3D tool."),
+        ("Inspect", "Rotate the mesh. Look for broken surfaces, impossible overhangs, and lost biological features."),
+        ("Export", "Export an STL. Keep a screenshot of the mesh before slicing."),
+        ("Print", "3D print a small prototype, even if the model is imperfect."),
+    ]
+    _s3d_cols = st.columns(4)
+    for _i, (_t, _tx) in enumerate(_steps_3d):
+        with _s3d_cols[_i]:
+            st.markdown(
+                f'<div style="padding:16px;border-radius:10px;background:rgba(7,28,24,0.74);'
+                f'border:1px solid rgba(100,200,150,0.3);min-height:160px">'
+                f'<strong style="color:#3fCFC4">{_t}</strong><br><br>'
+                f'<small style="color:#a0c8b8">{_tx}</small></div>',
+                unsafe_allow_html=True,
+            )
+
+    st.divider()
+    _stl_done = st.checkbox("I have created or inspected an STL pathway.", key="stl_done_gate")
+    if st.button("📋 Evaluate physical result", type="primary", disabled=not _stl_done):
+        st.session_state.stage = 7
+        st.rerun()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 8 — Evaluate
+# ═════════════════════════════════════════════════════════════════════════════
+
+elif _stage == 7:
+    st.header("Step 8 — Evaluate")
+    st.write("Log what failed. Biomimicry improves when the physical prototype argues back.")
+
+    _f  = st.text_area("How did the translation from nature → AI → physical object fail?", key="ev_failure",   height=100)
+    _n  = st.text_area("What nuances of the biological organism were lost?",                key="ev_nuance",    height=100)
+    _pf = st.text_area("Did the 3D print function as expected?",                            key="ev_printfn",   height=100)
+    _ni = st.text_area("What should change in the next iteration?",                         key="ev_nextiter",  height=100)
+
+    _all_done = all(len((v or "").strip()) > 8 for v in [_f, _n, _pf, _ni])
+    if st.button("✅ Finish and start new cycle", type="primary", disabled=not _all_done):
+        for _k in list(st.session_state.keys()):
+            del st.session_state[_k]
+        st.rerun()
+    if not _all_done:
+        st.caption("Complete every evaluation field to finish.")

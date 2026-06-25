@@ -1,26 +1,58 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
   Box,
   Check,
   Clipboard,
-  Compass,
   ExternalLink,
   Eye,
   FileText,
-  Leaf,
   Pencil,
   Printer,
+  RefreshCw,
   Sparkles,
   Video,
 } from 'lucide-react';
+import OrganicBackground from './OrganicBackground.jsx';
+import LandingPage from './LandingPage.jsx';
+import StepTransition from './StepTransition.jsx';
+import { createRipple } from './ripple.js';
 
 const API_BASE = 'http://localhost:8000/api';
 const configuredApiBase = import.meta.env.VITE_API_BASE || API_BASE;
 const normalizedApiBase = configuredApiBase.replace(/\/$/, '');
 const BACKEND_BASE = normalizedApiBase.replace('/api', '');
-const transition = { duration: 0.45, ease: 'easeOut' };
+
+/* ── Framer Motion variants ── */
+const stepVariants = {
+  initial: { clipPath: 'circle(28px at 50% 56%)', opacity: 0 },
+  animate: {
+    clipPath: 'circle(150% at 50% 56%)',
+    opacity: 1,
+    transition: { duration: 0.78, ease: [0.16, 1, 0.3, 1] },
+  },
+  exit: {
+    clipPath: 'circle(0px at 50% 56%)',
+    opacity: 0,
+    transition: { duration: 0.38, ease: [0.7, 0, 0.84, 0] },
+  },
+};
+
+const containerVariants = {
+  initial: {},
+  animate: { transition: { staggerChildren: 0.07, delayChildren: 0.18 } },
+};
+
+const cardVariants = {
+  initial: { opacity: 0, scale: 0.84, y: 14 },
+  animate: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.40, ease: [0.16, 1, 0.3, 1] } },
+};
+
+const iconBubbleVariants = {
+  initial: { opacity: 0, scale: 0.6, rotate: -12 },
+  animate: { opacity: 1, scale: 1, rotate: 0, transition: { duration: 0.50, ease: [0.34, 1.56, 0.64, 1] } },
+};
 
 const STEPS = [
   'Product Analyse',
@@ -61,7 +93,7 @@ const uniqueFunctions = (items) => {
 };
 
 function App() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [productName, setProductName] = useState('');
   const [breakdown, setBreakdown] = useState([]);
@@ -84,6 +116,35 @@ function App() {
   const [evaluation, setEvaluation] = useState(emptyEvaluation);
   const [error, setError] = useState('');
   const [health, setHealth] = useState({ status: 'checking' });
+  const [explodedView, setExplodedView] = useState(null);
+  const [imageRedoLoading, setImageRedoLoading] = useState(false);
+  const [imageRedoHint, setImageRedoHint] = useState('');
+
+  /* ── Step transition orchestration ── */
+  const [displayedStep, setDisplayedStep]   = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const pendingStepRef       = useRef(null);
+  const skipNextTransition   = useRef(false);
+
+  useEffect(() => {
+    if (step === displayedStep) return;
+    // Landing→step1: LandingPage handles its own transition; reset: jump directly
+    if (step <= 1 || skipNextTransition.current) {
+      skipNextTransition.current = false;
+      setDisplayedStep(step);
+      return;
+    }
+    pendingStepRef.current = step;
+    setIsTransitioning(true);
+  }, [step, displayedStep]);
+
+  const handleStepTransitioned = useCallback(() => {
+    if (pendingStepRef.current !== null) {
+      setDisplayedStep(pendingStepRef.current);
+      pendingStepRef.current = null;
+    }
+    setIsTransitioning(false);
+  }, []);
 
   const functions = useMemo(() => uniqueFunctions(breakdown), [breakdown]);
 
@@ -218,7 +279,35 @@ function App() {
     setStep(6);
   });
 
+  const redoProductImage = async (hint) => {
+    setImageRedoLoading(true);
+    setError('');
+    try {
+      const image = await requestJson('product-image', { product: productName.trim(), hint: hint || '' });
+      setProductImage({
+        url: resolveImageUrl(image.image_url),
+        source: image.source,
+        sourceUrl: image.source_url,
+        searchUrl: image.search_url,
+        license: image.license,
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setImageRedoLoading(false);
+    }
+  };
+
+  const loadExplodedView = () => runAction(async () => {
+    const data = await requestJson('exploded-view', {
+      product: productName,
+      components: breakdown.map((item) => ({ component: item.component, function: item.function })),
+    });
+    setExplodedView(data);
+  });
+
   const reset = () => {
+    skipNextTransition.current = true;
     setStep(1);
     setProductName('');
     setBreakdown([]);
@@ -240,11 +329,30 @@ function App() {
     setStlCreated(false);
     setEvaluation(emptyEvaluation);
     setError('');
+    setExplodedView(null);
+    setImageRedoHint('');
+    setImageRedoLoading(false);
   };
 
   return (
     <main className="app-shell">
+      <OrganicBackground />
       <BioluminescentBackground />
+      <BiomimeticDecorations />
+
+      <AnimatePresence>
+        {displayedStep === 0 && <LandingPage key="landing" onEnter={() => setStep(1)} />}
+      </AnimatePresence>
+
+      {/* Subtle bioluminescent membrane transition for every step advance */}
+      {isTransitioning && (
+        <StepTransition
+          key={`tr-${step}`}
+          stepIndex={Math.min(Math.max(step - 2, 0), 6)}
+          onComplete={handleStepTransitioned}
+        />
+      )}
+
       <header className="topbar">
         <div>
           <span className="brand-mark">BioMimetix AI</span>
@@ -252,11 +360,11 @@ function App() {
         </div>
         <div className="topbar-actions">
           <ApiStatus health={health} />
-          <button className="ghost-button" onClick={reset}>New cycle</button>
+          <button className="ghost-button ripple-btn" onClick={reset}>New cycle</button>
         </div>
       </header>
 
-      <Timeline current={step} />
+      {displayedStep >= 1 && <Timeline current={displayedStep} />}
       {error && <div className="error-banner">{error}</div>}
       {loading && <LoadingOverlay />}
 
@@ -270,15 +378,17 @@ function App() {
       />
 
       <AnimatePresence mode="wait">
+        {displayedStep >= 1 && (
         <motion.section
-          key={step}
+          key={displayedStep}
           className="step-panel"
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -18 }}
-          transition={transition}
+          variants={stepVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={{ duration: 0.45, ease: 'easeOut' }}
         >
-          {step === 1 && (
+          {displayedStep === 1 && (
             <StepIntro
               productName={productName}
               setProductName={setProductName}
@@ -286,18 +396,25 @@ function App() {
             />
           )}
 
-          {step === 2 && (
+          {displayedStep === 2 && (
             <StepFunctions
               productName={productName}
               breakdown={breakdown}
               functions={functions}
               selectedFunction={selectedFunction}
               setSelectedFunction={setSelectedFunction}
+              productImage={productImage}
+              imageRedoLoading={imageRedoLoading}
+              imageRedoHint={imageRedoHint}
+              setImageRedoHint={setImageRedoHint}
+              onRedoImage={redoProductImage}
+              explodedView={explodedView}
+              onLoadExplodedView={loadExplodedView}
               onContinue={startNatureQuest}
             />
           )}
 
-          {step === 3 && (
+          {displayedStep === 3 && (
             <StepBiomimicry
               options={biomimicryOptions}
               selectedOrganism={selectedOrganism}
@@ -309,7 +426,7 @@ function App() {
             />
           )}
 
-          {step === 4 && (
+          {displayedStep === 4 && (
             <StepPrinciples
               principles={principles}
               sketchPack={sketchPack}
@@ -321,7 +438,7 @@ function App() {
             />
           )}
 
-          {step === 5 && (
+          {displayedStep === 5 && (
             <StepIdeation
               concepts={concepts}
               selectedConcept={selectedConcept}
@@ -332,7 +449,7 @@ function App() {
             />
           )}
 
-          {step === 6 && (
+          {displayedStep === 6 && (
             <StepPrompt
               prompt={finalPrompt}
               promptUsed={promptUsed}
@@ -341,7 +458,7 @@ function App() {
             />
           )}
 
-          {step === 7 && (
+          {displayedStep === 7 && (
             <StepPrintpal
               stlCreated={stlCreated}
               setStlCreated={setStlCreated}
@@ -349,7 +466,7 @@ function App() {
             />
           )}
 
-          {step === 8 && (
+          {displayedStep === 8 && (
             <StepEvaluate
               evaluation={evaluation}
               setEvaluation={setEvaluation}
@@ -357,8 +474,88 @@ function App() {
             />
           )}
         </motion.section>
+        )}
       </AnimatePresence>
     </main>
+  );
+}
+
+function BiomimeticDecorations() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none', overflow: 'hidden' }}
+    >
+      {/* ── Fibonacci / Nautilus spiral — top right ── */}
+      <svg
+        style={{ position: 'absolute', top: '3%', right: '-5%', width: '440px', opacity: 0.17, animation: 'spiralTurn 90s linear infinite' }}
+        viewBox="0 0 300 300" fill="none"
+      >
+        <path
+          d="M150 150 A13 13 0 0 1 163 150 A26 26 0 0 1 150 176 A42 42 0 0 1 108 150 A67 67 0 0 1 150 83 A108 108 0 0 1 258 150 A175 175 0 0 1 150 325 A283 283 0 0 1 -133 150"
+          stroke="rgba(63,207,196,1)" strokeWidth="1.3"
+        />
+        <path
+          d="M150 150 A8 8 0 0 0 142 150 A16 16 0 0 0 150 134 A26 26 0 0 0 176 150 A42 42 0 0 0 150 192 A67 67 0 0 0 83 150"
+          stroke="rgba(200,151,61,0.85)" strokeWidth="0.9"
+        />
+        <circle cx="150" cy="150" r="2.5" fill="rgba(63,207,196,0.6)" />
+      </svg>
+
+      {/* ── Leaf vein network — bottom left ── */}
+      <svg
+        style={{ position: 'absolute', bottom: '6%', left: '-3%', width: '360px', opacity: 0.15, animation: 'leafSway 16s ease-in-out infinite' }}
+        viewBox="0 0 200 250" fill="none"
+      >
+        <path
+          d="M100 230 C60 165 28 95 72 46 C96 18 132 16 148 56 C170 102 150 168 100 230Z"
+          stroke="rgba(110,214,136,0.9)" strokeWidth="1.2"
+        />
+        <line x1="100" y1="230" x2="100" y2="46"  stroke="rgba(63,207,196,0.75)" strokeWidth="0.9" />
+        <line x1="100" y1="76"  x2="132" y2="55"  stroke="rgba(63,207,196,0.60)" strokeWidth="0.65" />
+        <line x1="100" y1="96"  x2="68"  y2="74"  stroke="rgba(63,207,196,0.55)" strokeWidth="0.60" />
+        <line x1="100" y1="116" x2="138" y2="97"  stroke="rgba(63,207,196,0.50)" strokeWidth="0.55" />
+        <line x1="100" y1="136" x2="66"  y2="114" stroke="rgba(63,207,196,0.45)" strokeWidth="0.50" />
+        <line x1="100" y1="156" x2="132" y2="139" stroke="rgba(63,207,196,0.40)" strokeWidth="0.45" />
+        <line x1="132" y1="55"  x2="148" y2="40"  stroke="rgba(63,207,196,0.35)" strokeWidth="0.40" />
+        <line x1="132" y1="55"  x2="142" y2="68"  stroke="rgba(63,207,196,0.30)" strokeWidth="0.35" />
+        <line x1="68"  y1="74"  x2="55"  y2="60"  stroke="rgba(63,207,196,0.30)" strokeWidth="0.35" />
+      </svg>
+
+      {/* ── Mycelium branching network — upper left ── */}
+      <svg
+        style={{ position: 'absolute', top: '18%', left: '-1%', width: '300px', opacity: 0.13, animation: 'myceliumDrift 22s ease-in-out infinite' }}
+        viewBox="0 0 280 280" fill="none"
+      >
+        <line x1="80"  y1="210" x2="140" y2="145" stroke="rgba(155,123,196,1)"   strokeWidth="0.9" />
+        <line x1="140" y1="145" x2="205" y2="80"  stroke="rgba(155,123,196,0.9)" strokeWidth="0.8" />
+        <line x1="140" y1="145" x2="100" y2="78"  stroke="rgba(155,123,196,0.9)" strokeWidth="0.8" />
+        <line x1="205" y1="80"  x2="248" y2="48"  stroke="rgba(155,123,196,0.7)" strokeWidth="0.65" />
+        <line x1="205" y1="80"  x2="235" y2="112" stroke="rgba(155,123,196,0.7)" strokeWidth="0.65" />
+        <line x1="100" y1="78"  x2="58"  y2="48"  stroke="rgba(155,123,196,0.7)" strokeWidth="0.65" />
+        <line x1="100" y1="78"  x2="68"  y2="110" stroke="rgba(155,123,196,0.7)" strokeWidth="0.65" />
+        <line x1="248" y1="48"  x2="265" y2="28"  stroke="rgba(155,123,196,0.5)" strokeWidth="0.50" />
+        <line x1="248" y1="48"  x2="262" y2="62"  stroke="rgba(155,123,196,0.5)" strokeWidth="0.45" />
+        <line x1="80"  y1="210" x2="48"  y2="242" stroke="rgba(155,123,196,0.6)" strokeWidth="0.60" />
+        <line x1="80"  y1="210" x2="112" y2="240" stroke="rgba(155,123,196,0.5)" strokeWidth="0.50" />
+        <circle cx="140" cy="145" r="2.8" fill="rgba(155,123,196,0.65)" />
+        <circle cx="205" cy="80"  r="2.2" fill="rgba(155,123,196,0.55)" />
+        <circle cx="100" cy="78"  r="2.2" fill="rgba(155,123,196,0.55)" />
+        <circle cx="80"  cy="210" r="2.0" fill="rgba(155,123,196,0.45)" />
+      </svg>
+
+      {/* ── Small amber spiral — mid right ── */}
+      <svg
+        style={{ position: 'absolute', top: '48%', right: '1%', width: '190px', opacity: 0.13, animation: 'spiralTurn 130s linear infinite reverse' }}
+        viewBox="0 0 160 160" fill="none"
+      >
+        <path
+          d="M80 80 A7 7 0 0 1 87 80 A14 14 0 0 1 80 94 A23 23 0 0 1 57 80 A37 37 0 0 1 80 43 A60 60 0 0 1 140 80 A97 97 0 0 1 80 177"
+          stroke="rgba(200,151,61,0.95)" strokeWidth="1.1"
+        />
+        <circle cx="80" cy="80" r="2" fill="rgba(200,151,61,0.7)" />
+      </svg>
+    </div>
   );
 }
 
@@ -464,7 +661,14 @@ function ApiStatus({ health }) {
 function StepHeader({ icon, eyebrow, title, children }) {
   return (
     <div className="step-header">
-      <div className="icon-bubble">{icon}</div>
+      <motion.div
+        className="icon-bubble"
+        variants={iconBubbleVariants}
+        initial="initial"
+        animate="animate"
+      >
+        {icon}
+      </motion.div>
       <span>{eyebrow}</span>
       <h1>{title}</h1>
       {children && <p>{children}</p>}
@@ -474,58 +678,204 @@ function StepHeader({ icon, eyebrow, title, children }) {
 
 function StepIntro({ productName, setProductName, onAnalyze }) {
   return (
-    <div className="intro-layout">
-      <div>
-        <StepHeader icon={<Compass />} eyebrow="Step 1" title="Product Analyse">
-          Define the product. The AI may break it down, but you choose the redesign path.
+    <div className="intro-hero">
+      {/* Biomimetic mandala — decorative SVG that slowly rotates */}
+      <div className="intro-mandala" aria-hidden="true">
+        <svg viewBox="0 0 700 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Outer dashed orbit */}
+          <circle cx="350" cy="300" r="260" stroke="rgba(63,207,196,0.07)" strokeWidth="0.8" strokeDasharray="3 9"/>
+          <circle cx="350" cy="300" r="196" stroke="rgba(155,123,196,0.09)" strokeWidth="0.7" strokeDasharray="2 7"/>
+          <circle cx="350" cy="300" r="130" stroke="rgba(63,207,196,0.08)" strokeWidth="0.6" strokeDasharray="1.5 6"/>
+          {/* Radial spokes — 24 lines at different lengths */}
+          {Array.from({ length: 24 }, (_, i) => {
+            const a = (i / 24) * Math.PI * 2;
+            const r1 = 42, r2 = i % 3 === 0 ? 262 : i % 3 === 1 ? 198 : 130;
+            return (
+              <line key={i}
+                x1={350 + Math.cos(a) * r1} y1={300 + Math.sin(a) * r1}
+                x2={350 + Math.cos(a) * r2} y2={300 + Math.sin(a) * r2}
+                stroke={`rgba(63,207,196,${i % 6 === 0 ? 0.18 : 0.07})`}
+                strokeWidth={i % 6 === 0 ? 0.9 : 0.5}
+              />
+            );
+          })}
+          {/* Fibonacci spiral */}
+          <path
+            d="M350 300 A20 20 0 0 1 370 300 A40 40 0 0 1 350 340 A65 65 0 0 1 285 300 A104 104 0 0 1 350 196 A169 169 0 0 1 519 300 A274 274 0 0 1 350 574"
+            stroke="rgba(200,151,61,0.22)" strokeWidth="1.4"
+          />
+          <path
+            d="M350 300 A12 12 0 0 0 338 300 A24 24 0 0 0 350 276 A39 39 0 0 0 389 300 A62 62 0 0 0 350 362 A101 101 0 0 0 249 300"
+            stroke="rgba(110,214,136,0.16)" strokeWidth="1.0"
+          />
+          {/* Leaf petals at 8 cardinal / intercardinal points */}
+          {Array.from({ length: 8 }, (_, i) => {
+            const a = (i / 8) * Math.PI * 2;
+            const cx = 350 + Math.cos(a) * 198;
+            const cy = 300 + Math.sin(a) * 198;
+            const rot = (a * 180) / Math.PI + 90;
+            return (
+              <ellipse key={i} cx={cx} cy={cy} rx="10" ry="22"
+                transform={`rotate(${rot},${cx},${cy})`}
+                stroke="rgba(110,214,136,0.18)" strokeWidth="0.7"
+              />
+            );
+          })}
+          {/* Honeycomb cells at center cluster */}
+          {[[-22,0],[22,0],[0,-20],[0,20],[-22,-20],[22,-20],[-22,20],[22,20]].map(([dx,dy],i) => (
+            <polygon key={i}
+              points={`${350+dx},${300+dy-10} ${350+dx+9},${300+dy-5} ${350+dx+9},${300+dy+5} ${350+dx},${300+dy+10} ${350+dx-9},${300+dy+5} ${350+dx-9},${300+dy-5}`}
+              stroke="rgba(63,207,196,0.14)" strokeWidth="0.6"
+            />
+          ))}
+          {/* Center nucleus */}
+          <circle cx="350" cy="300" r="18" stroke="rgba(63,207,196,0.25)" strokeWidth="0.8"/>
+          <circle cx="350" cy="300" r="6"  fill="rgba(63,207,196,0.20)"/>
+          <circle cx="350" cy="300" r="2.5" fill="rgba(63,207,196,0.50)"/>
+          {/* Mycelium tips at outer ring */}
+          {Array.from({ length: 8 }, (_, i) => {
+            const a = ((i + 0.5) / 8) * Math.PI * 2;
+            const cx = 350 + Math.cos(a) * 258;
+            const cy = 300 + Math.sin(a) * 258;
+            return <circle key={i} cx={cx} cy={cy} r="2.2" fill="rgba(155,123,196,0.28)" key={i}/>;
+          })}
+        </svg>
+      </div>
+
+      <div className="intro-content">
+        <StepHeader
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M12 2C6 8 4 14 12 22C20 14 18 8 12 2Z" />
+              <path d="M12 2L12 22" />
+              <path d="M12 8L8 12M12 8L16 12" />
+              <path d="M12 13L9 16M12 13L15 16" />
+            </svg>
+          }
+          eyebrow="Step 1 — Begin"
+          title="Product Analyse"
+        >
+          Nature has already solved every engineering problem you face.
+          Name your product — we find its biological twin.
         </StepHeader>
+
         <div className="input-dock">
           <input
             value={productName}
             onChange={(event) => setProductName(event.target.value)}
             onKeyDown={(event) => event.key === 'Enter' && onAnalyze()}
             placeholder="Helmet, running shoe, drone blade..."
+            autoFocus
           />
-          <button onClick={onAnalyze} disabled={!productName.trim()}>
+          <button className="ripple-btn" onClick={onAnalyze} disabled={!productName.trim()}>
             Analyze product <ArrowRight size={18} />
           </button>
         </div>
+
         <div className="quick-examples">
-          {['Helmet', 'Running shoe', 'Drone blade'].map((item) => (
+          {['Helmet', 'Running shoe', 'Drone blade', 'Bicycle frame', 'Water bottle'].map((item) => (
             <button key={item} onClick={() => setProductName(item)}>{item}</button>
           ))}
         </div>
-      </div>
-      <div className="intro-visual" aria-hidden="true">
-        <img src="/images/biomimicry-bg-1.png" alt="" />
-        <img src="/images/biomimicry-bg-2.png" alt="" />
       </div>
     </div>
   );
 }
 
-function StepFunctions({ productName, breakdown, functions, selectedFunction, setSelectedFunction, onContinue }) {
+function StepFunctions({
+  productName, breakdown, functions, selectedFunction, setSelectedFunction,
+  productImage, imageRedoLoading, imageRedoHint, setImageRedoHint, onRedoImage,
+  explodedView, onLoadExplodedView, onContinue,
+}) {
   return (
     <>
-      <StepHeader icon={<Box />} eyebrow="Step 2" title={`Product Functions: ${productName}`}>
-        Review the AI breakdown. Manually lock the single function you want to redesign.
+      <StepHeader icon={<Box />} eyebrow="Step 2" title={`${productName} — Functions`}>
+        AI-suggested breakdown. Click a function card to select the one you want to redesign through nature.
       </StepHeader>
-      <div className="card-grid">
-        {functions.map((item) => (
-          <ChoiceCard
-            key={`${item.component}-${item.function}`}
-            active={selectedFunction?.function === item.function}
-            onClick={() => setSelectedFunction(item)}
-            title={item.component}
-            text={item.function}
-          />
-        ))}
+
+      <div className="product-functions-layout">
+        {/* ── Left: product image hero ── */}
+        <div className="product-image-panel">
+          <div className="product-image-hero">
+            {imageRedoLoading && (
+              <div className="image-loading-overlay">
+                <div className="pulse-orb" />
+              </div>
+            )}
+            {productImage?.url
+              ? <img src={productImage.url} alt={productName} />
+              : <div className="image-empty-hero"><Box size={40} /><span>{productName}</span></div>
+            }
+            {(productImage?.sourceUrl || productImage?.searchUrl) && (
+              <a
+                href={productImage.sourceUrl || productImage.searchUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="image-source-badge"
+              >
+                {productImage.source || 'Source'} <ExternalLink size={11} />
+              </a>
+            )}
+          </div>
+
+          <div className="image-redo-panel">
+            <span className="image-redo-label">Not the right image?</span>
+            <input
+              className="image-redo-input"
+              value={imageRedoHint}
+              onChange={(e) => setImageRedoHint(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && onRedoImage(imageRedoHint)}
+              placeholder={`e.g. "sport ${productName.toLowerCase()}", "modern design"`}
+            />
+            <button
+              className="image-redo-btn"
+              onClick={() => onRedoImage(imageRedoHint)}
+              disabled={imageRedoLoading}
+            >
+              <RefreshCw size={13} /> Try different image
+            </button>
+          </div>
+        </div>
+
+        {/* ── Right: function suggestion cards ── */}
+        <div className="product-functions-cards">
+          <p className="functions-hint">
+            <Sparkles size={13} /> AI suggestions — pick one to explore through nature
+          </p>
+          <motion.div className="card-grid" variants={containerVariants} initial="initial" animate="animate">
+            {functions.map((item) => (
+              <ChoiceCard
+                key={`${item.component}-${item.function}`}
+                active={selectedFunction?.function === item.function}
+                onClick={() => setSelectedFunction(item)}
+                title={item.component}
+                text={item.function}
+              />
+            ))}
+          </motion.div>
+        </div>
       </div>
+
+      {/* ── Exploded view ── */}
+      <div className="exploded-section">
+        {!explodedView ? (
+          <button className="ghost-button exploded-trigger" onClick={onLoadExplodedView}>
+            <Eye size={15} /> Generate exploded view
+          </button>
+        ) : (
+          <div className="exploded-view-card">
+            <span>Exploded view — {productName}</span>
+            <img src={resolveImageUrl(explodedView.image_url)} alt={`${productName} exploded view`} />
+          </div>
+        )}
+      </div>
+
       <BreakdownList items={breakdown} />
+
       <GateAction
         ready={Boolean(selectedFunction)}
         label="Start Nature Quest"
-        disabledLabel="Lock a primary function first"
+        disabledLabel="Select a function first"
         onClick={onContinue}
       />
     </>
@@ -535,7 +885,7 @@ function StepFunctions({ productName, breakdown, functions, selectedFunction, se
 function BreakdownList({ items }) {
   return (
     <div className="compact-list">
-      <span>Structured product breakdown</span>
+      <span>Full AI breakdown</span>
       {items.map((item, index) => (
         <p key={`${item.component}-${index}`}>
           <strong>{item.component}</strong> {item.function}
@@ -549,10 +899,19 @@ function StepBiomimicry({ options, selectedOrganism, onSelect, organismImage, ex
   const pack = selectedOrganism?.exploration_pack;
   return (
     <>
-      <StepHeader icon={<Leaf />} eyebrow="Step 3" title="Biomimicry: Nature Quest">
+      <StepHeader
+        icon={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <path d="M12 12C12 9 14 7 16 8C18 9 19 12 17 15C15 18 11 19 8 17C5 15 4 10 7 7C10 4 16 4 19 8" />
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+          </svg>
+        }
+        eyebrow="Step 3"
+        title="Biomimicry: Nature Quest"
+      >
         Choose one organism, then complete an exploration pack before abstraction unlocks.
       </StepHeader>
-      <div className="card-grid">
+      <motion.div className="card-grid" variants={containerVariants} initial="initial" animate="animate">
         {options.map((option) => (
           <ChoiceCard
             key={option.organism}
@@ -563,7 +922,7 @@ function StepBiomimicry({ options, selectedOrganism, onSelect, organismImage, ex
             action="Open exploration pack"
           />
         ))}
-      </div>
+      </motion.div>
       {selectedOrganism && (
         <ExplorationPack
           organism={selectedOrganism}
@@ -637,10 +996,20 @@ function ResourceSection({ icon, title, items }) {
 function StepPrinciples({ principles, sketchPack, selectedPrinciple, setSelectedPrinciple, sketchDone, setSketchDone, onContinue }) {
   return (
     <>
-      <StepHeader icon={<Pencil />} eyebrow="Step 4" title="Principle Abstraction">
+      <StepHeader
+        icon={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <polygon points="12,3 19,7 19,15 12,19 5,15 5,7" />
+            <polygon points="12,7 16,9 16,14 12,16 8,14 8,9" />
+            <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+          </svg>
+        }
+        eyebrow="Step 4"
+        title="Principle Abstraction"
+      >
         Select one abstract principle, then sketch it before ideation becomes available.
       </StepHeader>
-      <div className="card-grid">
+      <motion.div className="card-grid" variants={containerVariants} initial="initial" animate="animate">
         {principles.map((principle) => (
           <ChoiceCard
             key={principle.title}
@@ -650,7 +1019,7 @@ function StepPrinciples({ principles, sketchPack, selectedPrinciple, setSelected
             text={principle.principle}
           />
         ))}
-      </div>
+      </motion.div>
       <SketchGate sketchPack={sketchPack} checked={sketchDone} setChecked={setSketchDone} />
       <GateAction
         ready={Boolean(selectedPrinciple && sketchDone)}
@@ -688,7 +1057,7 @@ function StepIdeation({ concepts, selectedConcept, setSelectedConcept, conceptRe
       <StepHeader icon={<Sparkles />} eyebrow="Step 5" title="Ideation and Creation">
         Select one concept. Before visualization, pause and refine what must remain physically testable.
       </StepHeader>
-      <div className="card-grid two">
+      <motion.div className="card-grid two" variants={containerVariants} initial="initial" animate="animate">
         {concepts.map((concept) => (
           <ChoiceCard
             key={concept.concept_name}
@@ -698,7 +1067,7 @@ function StepIdeation({ concepts, selectedConcept, setSelectedConcept, conceptRe
             text={concept.description}
           />
         ))}
-      </div>
+      </motion.div>
       <label className="gate-check standalone">
         <input type="checkbox" checked={conceptRefined} onChange={(event) => setConceptRefined(event.target.checked)} />
         I have mentally refined this concept and identified what should be tested physically.
@@ -806,18 +1175,28 @@ function Question({ label, value, onChange }) {
 
 function ChoiceCard({ active, onClick, title, text, action }) {
   return (
-    <button className={`choice-card ${active ? 'active' : ''}`} onClick={onClick}>
+    <motion.button
+      className={`choice-card ${active ? 'active' : ''}`}
+      onClick={(e) => { createRipple(e); onClick?.(); }}
+      variants={cardVariants}
+      whileHover={{ scale: 1.015, transition: { duration: 0.30, ease: 'easeOut' } }}
+      whileTap={{ scale: 0.96, transition: { duration: 0.12 } }}
+    >
       <strong>{title}</strong>
       <p>{text}</p>
       {action && <span>{action}</span>}
-    </button>
+    </motion.button>
   );
 }
 
 function GateAction({ ready, label, disabledLabel, onClick }) {
   return (
     <div className="gate-action">
-      <button disabled={!ready} onClick={onClick}>
+      <button
+        className="ripple-btn"
+        disabled={!ready}
+        onClick={(e) => { createRipple(e); onClick?.(); }}
+      >
         {ready ? label : disabledLabel} <ArrowRight size={18} />
       </button>
     </div>

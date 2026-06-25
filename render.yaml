@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: biomimetix
+    env: python
+    region: frankfurt
+    buildCommand: >-
+      pip install -r biomimetix/backend/requirements.txt &&
+      cd biomimetix/frontend &&
+      npm install &&
+      VITE_API_BASE=/api npm run build
+    startCommand: cd biomimetix/backend && uvicorn api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash-lite
+      - key: GEMINI_IMAGE_MODEL
+        value: gemini-2.5-flash-image

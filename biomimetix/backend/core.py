@@ -33,6 +33,7 @@ class DeconstructReq(BaseModel):
 
 class ProductImageReq(BaseModel):
     product: str
+    hint: str = ""
 
 class BiomimicryReq(BaseModel):
     product: str

@@ -1,18 +1,31 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import core
+
+FRONTEND_DIST = Path(__file__).parents[1] / "frontend" / "dist"
+
+
+class SPAStaticFiles(StaticFiles):
+    """Serves a React SPA: falls back to index.html for unknown paths."""
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code == 404:
+                return await super().get_response("index.html", scope)
+            raise
 
 
 app = FastAPI(title="BioMimetix API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,7 +59,7 @@ def deconstruct(req: core.DeconstructReq):
 
 @app.post("/api/product-image")
 def product_image(req: core.ProductImageReq):
-    return _respond(core.product_image_search, req.product)
+    return _respond(core.product_image_search, req.product, req.hint)
 
 
 @app.post("/api/biomimicry")
@@ -82,3 +95,8 @@ def exploded_view(req: core.ExplodedViewReq):
 @app.post("/api/asknature-search")
 def asknature_search(req: core.AskNatureSearchReq):
     return _respond(core.asknature_search, req.query, req.limit)
+
+
+# Serve the React frontend for all non-API routes (must be last)
+if FRONTEND_DIST.exists():
+    app.mount("/", SPAStaticFiles(directory=FRONTEND_DIST, html=True), name="spa")
