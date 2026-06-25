@@ -639,10 +639,452 @@ def exploded_view(req: ExplodedViewReq):
 
 # --- Streamlit UI ---
 import base64
+import math
 
+# ══════════════════════════════════════════════════════════════════════════════
+# VISUAL CONSTANTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+STEP_NAMES  = ["Product Analyse","Functions","Biomimicry","Principles","Ideation","2D Image","3D Model","Evaluate"]
+STEP_ICONS  = ["🔬","⚙️","🌿","🧬","💡","🎨","🖨️","📋"]
+
+_ORGANISMS = [
+    ("Lotus leaf",         "Superhydrophobic self-cleaning nanostructure"),
+    ("Sharkskin",          "Turbulence-breaking dermal denticles"),
+    ("Spider silk",        "5× tensile strength of high-grade steel"),
+    ("Mantis shrimp club", "1,500 N impact at 23 m/s without fracture"),
+    ("Kingfisher bill",    "Zero-splash water entry via gradient taper"),
+    ("Gecko foot",         "Van der Waals dry adhesion — no glue needed"),
+    ("Boxfish shell",      "Rigid-yet-flexible interlocking lattice"),
+    ("Bone trabeculate",   "Porous load-path optimisation"),
+]
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CSS — matching index.css palette exactly
+# ══════════════════════════════════════════════════════════════════════════════
+
+_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+
+:root {
+  --deep:   #07130a;
+  --line:   rgba(63,207,196,0.14);
+  --line-b: rgba(63,207,196,0.34);
+  --text:   #dff0e2;
+  --muted:  rgba(223,240,226,0.64);
+  --faint:  rgba(223,240,226,0.38);
+  --bio:    #3fcfc4;
+  --amber:  #c8973d;
+  --spore:  #9b7bc4;
+  --bio2:   #6ed688;
+}
+
+/* Page */
+html, body, [data-testid="stAppViewContainer"] {
+  background:
+    radial-gradient(ellipse at 40% -5%,  rgba(63,207,196,0.20), transparent 44%),
+    radial-gradient(ellipse at 90% 20%,  rgba(200,151,61,0.13),  transparent 38%),
+    radial-gradient(ellipse at 8%  74%,  rgba(155,123,196,0.15), transparent 44%),
+    radial-gradient(ellipse at 62% 92%,  rgba(63,207,196,0.09),  transparent 40%),
+    linear-gradient(162deg, #050e07 0%, #081a0a 38%, #06100d 68%, #070b10 100%) !important;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
+  color: var(--text) !important;
+}
+[data-testid="stHeader"]  { background: transparent !important; }
+[data-testid="stToolbar"] { display: none; }
+#MainMenu, footer         { display: none; }
+[data-testid="stMainBlockContainer"] { padding-top: 12px !important; max-width: 1240px; }
+
+/* Typography */
+h1,h2,h3,h4 { color: var(--text) !important; font-family: 'Inter', sans-serif !important; }
+p, li, small, .stMarkdown, .stCaption { color: var(--muted) !important; font-family: 'Inter', sans-serif !important; }
+
+/* ── Topbar ── */
+.bm-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; margin-bottom: 24px;
+  border: 1px solid var(--line);
+  border-radius: 48px 22px 48px 22px;
+  background: rgba(7,22,10,0.74);
+  backdrop-filter: blur(32px) saturate(1.3);
+  box-shadow: 0 18px 80px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.bm-brand  { font-size: 1.06rem; font-weight: 800; color: var(--text); }
+.bm-tagline { color: var(--muted); font-size: 0.86rem; margin: 3px 0 0; }
+.bm-pill {
+  display: inline-flex; align-items: center; min-height: 34px; padding: 0 14px;
+  border: 1px solid rgba(63,207,196,0.38); border-radius: 999px;
+  background: rgba(63,207,196,0.10); color: var(--bio);
+  font-size: 0.78rem; font-weight: 760; white-space: nowrap;
+}
+
+/* ── Timeline ── */
+.bm-timeline { display: grid; grid-template-columns: repeat(8,1fr); gap: 8px; margin-bottom: 20px; }
+.bm-tstep {
+  padding: 10px 8px; text-align: center;
+  border: 1px solid var(--line); border-radius: 26px 12px 26px 12px;
+  background: rgba(7,22,10,0.54); color: var(--faint);
+}
+.bm-tstep-n {
+  display: inline-flex; width: 26px; height: 26px;
+  align-items: center; justify-content: center; margin-bottom: 8px;
+  border-radius: 50% 32% 50% 32% / 32% 50% 32% 50%;
+  background: rgba(223,240,226,0.07); font-size: 0.76rem; font-weight: 800; color: inherit;
+}
+.bm-tstep small { display: block; font-size: 0.72rem; font-weight: 640; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: inherit; }
+.bm-tstep.active { border-color: rgba(63,207,196,0.58); color: var(--text); background: rgba(21,82,72,0.64); box-shadow: 0 0 40px rgba(63,207,196,0.12); }
+.bm-tstep.done   { border-color: rgba(200,151,61,0.28); color: rgba(220,186,118,0.84); }
+
+/* ── Context strip ── */
+.bm-ctx { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+.bm-ctx-card {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+  min-height: 78px; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 34px 14px 34px 14px;
+  background: rgba(8,24,12,0.70);
+}
+.bm-ctx-lbl { color: var(--amber) !important; font-size: 0.72rem !important; font-weight: 760 !important; letter-spacing: 0.11em; text-transform: uppercase; }
+.bm-ctx-val { color: var(--text) !important; font-size: 0.94rem !important; font-weight: 700 !important; margin-top: 4px; display: block; word-break: break-word; }
+
+/* ── Step panel (glass card) ── */
+.bm-panel {
+  padding: clamp(24px,4vw,50px); margin-bottom: 24px;
+  border: 1px solid var(--line); border-radius: 56px 28px 56px 28px;
+  background: linear-gradient(148deg, rgba(9,28,14,0.90), rgba(7,20,18,0.80));
+  backdrop-filter: blur(40px) saturate(1.24);
+  box-shadow: 0 36px 130px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.bm-step-header { max-width: 780px; margin-bottom: 28px; }
+.bm-icon-bubble {
+  display: inline-flex; width: 54px; height: 54px;
+  align-items: center; justify-content: center; margin-bottom: 18px;
+  border: 1px solid rgba(63,207,196,0.36); border-radius: 50% 32% 50% 32% / 32% 50% 32% 50%;
+  background: rgba(63,207,196,0.10); color: var(--bio);
+  box-shadow: 0 0 40px rgba(63,207,196,0.16); font-size: 1.4rem;
+}
+.bm-step-title { margin: 8px 0 10px; color: var(--text); font-size: clamp(2.1rem,5vw,3.6rem); font-weight: 800; line-height: 1.04; }
+.bm-step-desc  { margin: 0; color: var(--muted); font-size: 1.06rem; line-height: 1.68; }
+
+/* ── Cards ── */
+.bm-grid   { display: grid; gap: 14px; margin-bottom: 16px; }
+.bm-grid3  { grid-template-columns: repeat(3,1fr); }
+.bm-grid4  { grid-template-columns: repeat(4,1fr); }
+.bm-grid2  { grid-template-columns: repeat(2,1fr); }
+.bm-card {
+  position: relative; overflow: hidden; min-height: 160px; padding: 20px;
+  border: 1px solid var(--line); border-radius: 38px 16px 38px 16px;
+  background: rgba(9,28,14,0.68); color: var(--text); text-align: left;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  transition: border-color 220ms ease, background 220ms ease, box-shadow 220ms ease;
+}
+.bm-card:hover    { border-color: rgba(63,207,196,0.52); background: rgba(18,72,60,0.60); box-shadow: 0 0 54px rgba(63,207,196,0.12); }
+.bm-card.sel      { border-color: rgba(63,207,196,0.60); background: rgba(18,72,60,0.80); box-shadow: 0 0 54px rgba(63,207,196,0.18), inset 0 1px 0 rgba(255,255,255,0.07); }
+.bm-lbl           { color: var(--amber); font-size: 0.72rem; font-weight: 760; letter-spacing: 0.11em; text-transform: uppercase; }
+.bm-card-title    { display: block; color: var(--text); font-size: 1.10rem; font-weight: 700; margin: 6px 0 10px; }
+.bm-card-body     { color: var(--muted); font-size: 0.88rem; line-height: 1.58; margin: 0; }
+.bm-card-tag      { display: inline-flex; margin-top: 12px; color: var(--bio); font-size: 0.80rem; font-weight: 760; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* ── Buttons ── */
+.stButton > button {
+  border-radius: 38px 12px 38px 12px !important;
+  background: linear-gradient(138deg, #3fcfc4, #6ed688) !important;
+  color: #051208 !important; font-weight: 800 !important;
+  border: 0 !important; min-height: 52px !important; padding: 0 24px !important;
+  box-shadow: 0 0 40px rgba(63,207,196,0.24), 0 4px 24px rgba(0,0,0,0.22) !important;
+  transition: transform 180ms ease, box-shadow 180ms ease !important;
+  font-family: 'Inter', sans-serif !important; font-size: 0.95rem !important;
+}
+.stButton > button:hover:not(:disabled) {
+  transform: scale(1.025) !important;
+  box-shadow: 0 0 64px rgba(63,207,196,0.40), 0 8px 32px rgba(0,0,0,0.24) !important;
+}
+.stButton > button:disabled { opacity: 0.44 !important; box-shadow: none !important; cursor: not-allowed !important; }
+.stButton > button[kind="secondary"] {
+  background: rgba(223,240,226,0.07) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--text) !important; box-shadow: none !important;
+}
+.stButton > button[kind="secondary"]:hover:not(:disabled) {
+  background: rgba(63,207,196,0.12) !important; border-color: var(--line-b) !important;
+}
+/* Landing CTA — bigger, breathing glow */
+.bm-cta .stButton > button {
+  min-height: 64px !important; font-size: 1.08rem !important;
+  padding: 0 40px !important; border-radius: 50px 18px 50px 18px !important;
+  animation: ctaBreathe 3.4s ease-in-out infinite !important;
+}
+
+/* ── Inputs ── */
+.stTextInput > div > div > input {
+  min-height: 52px !important; border-radius: 34px 10px 34px 10px !important;
+  background: rgba(2,10,5,0.44) !important; border: 1px solid var(--line) !important;
+  color: var(--text) !important; font-size: 1.0rem !important; padding: 0 20px !important;
+}
+.stTextInput > div > div > input::placeholder { color: rgba(223,240,226,0.34) !important; }
+.stTextInput > div > div { border: none !important; box-shadow: none !important; }
+.stTextInput label { display: none !important; }
+.stTextArea > div > div > textarea {
+  border-radius: 20px 8px 20px 8px !important;
+  background: rgba(3,12,6,0.56) !important; border: 1px solid var(--line) !important;
+  color: var(--text) !important; padding: 14px !important; line-height: 1.5 !important;
+}
+.stTextArea > div > div > textarea:focus { border-color: rgba(63,207,196,0.60) !important; }
+.stTextArea label { color: var(--text) !important; font-weight: 700 !important; }
+
+/* ── Checkbox ── */
+.stCheckbox > label {
+  display: flex !important; align-items: flex-start !important; gap: 12px !important;
+  padding: 14px 16px !important;
+  border: 1px solid rgba(200,151,61,0.28) !important;
+  border-radius: 24px 10px 24px 10px !important;
+  background: rgba(200,151,61,0.07) !important;
+}
+.stCheckbox span { color: var(--text) !important; font-weight: 680 !important; }
+
+/* ── Misc ── */
+hr { border-color: var(--line) !important; margin: 20px 0 !important; }
+.stCode { border-radius: 20px 8px 20px 8px !important; }
+.bm-resource {
+  display: block; padding: 12px; margin-bottom: 8px;
+  border: 1px solid var(--line); border-radius: 18px 8px 18px 8px;
+  background: rgba(223,240,226,0.05); text-decoration: none;
+  transition: border-color 160ms, background 160ms;
+}
+.bm-resource:hover { border-color: var(--line-b); background: rgba(63,207,196,0.08); }
+.bm-rtitle { font-size: 0.96rem; font-weight: 600; color: var(--text); display: block; }
+.bm-rdesc  { font-size: 0.82rem; color: var(--muted); display: block; margin-top: 3px; }
+
+/* ── Keyframes ── */
+@keyframes ctaBreathe {
+  0%,100% { box-shadow: 0 0 48px rgba(63,207,196,0.30), 0 0 96px rgba(63,207,196,0.12), 0 8px 28px rgba(0,0,0,0.28); }
+  50%     { box-shadow: 0 0 80px rgba(63,207,196,0.55), 0 0 160px rgba(63,207,196,0.24), 0 12px 40px rgba(0,0,0,0.34); }
+}
+@keyframes spiralTurn {
+  from { transform: rotate(0deg) scale(1); opacity: 0.78; }
+  50%  { transform: rotate(180deg) scale(1.04); opacity: 0.62; }
+  to   { transform: rotate(360deg) scale(1); opacity: 0.78; }
+}
+@keyframes ringPulse { 0%,100%{opacity:0.14} 50%{opacity:0.38} }
+@keyframes drawCycle  { 0%{stroke-dashoffset:1500;opacity:0} 30%{stroke-dashoffset:0;opacity:1} 65%{stroke-dashoffset:0;opacity:1} 100%{stroke-dashoffset:1500;opacity:0.10} }
+@keyframes drawCycleS { 0%{stroke-dashoffset:800;opacity:0}  30%{stroke-dashoffset:0;opacity:.88} 65%{stroke-dashoffset:0;opacity:.88} 100%{stroke-dashoffset:800;opacity:0.10} }
+@keyframes drawCycleXS{ 0%{stroke-dashoffset:500;opacity:0}  30%{stroke-dashoffset:0;opacity:.80} 65%{stroke-dashoffset:0;opacity:.80} 100%{stroke-dashoffset:500;opacity:0.10} }
+@keyframes spokeCycle { 0%{stroke-dashoffset:250;opacity:0} 25%{stroke-dashoffset:0;opacity:1} 65%{stroke-dashoffset:0;opacity:1} 100%{stroke-dashoffset:250;opacity:0} }
+@keyframes petalBloom { 0%{opacity:0;transform:scale(0)} 28%{opacity:.52;transform:scale(1)} 72%{opacity:.52;transform:scale(1)} 100%{opacity:0;transform:scale(0)} }
+@keyframes dotBreathe { from{transform:scale(0.90)} to{transform:scale(1.18)} }
+@keyframes fadeInUp   { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes orgItem {
+  0%    { opacity:0; transform:translateY(10px); }
+  4%    { opacity:1; transform:translateY(0);    }
+  85%   { opacity:1; transform:translateY(0);    }
+  92%   { opacity:0; transform:translateY(-8px); }
+  100%  { opacity:0; transform:translateY(-8px); }
+}
+
+/* ── Landing page ── */
+.bm-landing-badge {
+  display:inline-flex; align-items:center; padding:6px 16px;
+  border:1px solid rgba(63,207,196,0.32); border-radius:999px;
+  background:rgba(63,207,196,0.08); color:#3fcfc4;
+  font-size:0.78rem; font-weight:760; letter-spacing:0.12em; text-transform:uppercase;
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+.bm-landing-title {
+  margin: 8px 0;
+  font-size: clamp(3.2rem,7vw,6.4rem); font-weight:820; line-height:0.94; letter-spacing:-0.03em;
+  background: linear-gradient(135deg,#dff0e2 18%,#3fcfc4 55%,#c8973d 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  animation: fadeInUp 0.7s ease-out 0.4s both;
+}
+.bm-landing-tagline {
+  margin:0; font-size:clamp(1.0rem,2vw,1.45rem);
+  color:rgba(223,240,226,0.64); line-height:1.55; font-style:italic; max-width:440px;
+  animation: fadeInUp 0.7s ease-out 1.1s both;
+}
+.bm-org-cycle { position:relative; min-height:70px; display:flex; align-items:center; overflow:hidden; }
+.bm-org-item  { position:absolute; opacity:0; padding:10px 18px; border-left:2px solid rgba(63,207,196,0.45); }
+.bm-org-name  { color:#3fcfc4; font-size:1.04rem; font-weight:740; display:block; }
+.bm-org-trait { color:rgba(223,240,226,0.64); font-size:0.86rem; }
+.bm-stats { display:flex; gap:36px; animation:fadeInUp 0.6s ease-out 1.65s both; }
+.bm-stat  { display:flex; flex-direction:column; gap:2px; }
+.bm-stat strong { color:#dff0e2; font-size:1.55rem; font-weight:800; line-height:1; }
+.bm-stat span   { color:rgba(223,240,226,0.64); font-size:0.78rem; font-weight:580; letter-spacing:0.04em; }
+
+@media (max-width:760px) {
+  .bm-grid3,.bm-grid4 { grid-template-columns:1fr !important; }
+  .bm-grid2 { grid-template-columns:1fr !important; }
+  .bm-timeline { grid-template-columns:repeat(4,1fr); }
+  .bm-ctx { grid-template-columns:repeat(2,1fr); }
+  .bm-stats { gap:20px; }
+}
+</style>
+"""
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SVG ORGANISM — CSS-animated (mirrors React's Framer Motion version)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _organism_svg():
+    spokes = ""
+    for i in range(24):
+        a = (i / 24) * math.pi * 2
+        bold = (i % 4 == 0)
+        r2 = 272 if i % 4 == 0 else (214 if i % 2 == 0 else 152)
+        x1 = 300 + math.cos(a) * 40;  y1 = 300 + math.sin(a) * 40
+        x2 = 300 + math.cos(a) * r2;  y2 = 300 + math.sin(a) * r2
+        op = 0.40 if bold else 0.14;   sw = 1.5 if bold else 0.6
+        delay = 0.5 + i * 0.022
+        spokes += (
+            f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
+            f'stroke="rgba(63,207,196,{op})" stroke-width="{sw}" '
+            f'stroke-dasharray="250" style="animation:spokeCycle 11s ease-in-out infinite;animation-delay:{delay:.2f}s"/>'
+        )
+
+    petals = ""
+    for i in range(8):
+        a = (i / 8) * math.pi * 2
+        cx = 300 + math.cos(a) * 214;  cy = 300 + math.sin(a) * 214
+        rot = (a * 180) / math.pi + 90;  delay = 1.6 + i * 0.1
+        petals += (
+            f'<ellipse cx="{cx:.1f}" cy="{cy:.1f}" rx="12" ry="30" '
+            f'transform="rotate({rot:.1f},{cx:.1f},{cy:.1f})" '
+            f'stroke="rgba(110,214,136,0.52)" stroke-width="1.4" fill="none" '
+            f'filter="url(#bg)" '
+            f'style="animation:petalBloom 7s ease-in-out infinite;animation-delay:{delay:.2f}s"/>'
+        )
+
+    hexagons = ""
+    for i in range(6):
+        a = (i / 6) * math.pi * 2
+        hcx = 300 + math.cos(a) * 152;  hcy = 300 + math.sin(a) * 152
+        pts = " ".join(f"{hcx+math.cos((j/6)*math.pi*2)*13:.1f},{hcy+math.sin((j/6)*math.pi*2)*13:.1f}" for j in range(6))
+        delay = 1.9 + i * 0.12
+        hexagons += (
+            f'<polygon points="{pts}" stroke="rgba(63,207,196,0.44)" stroke-width="1.1" fill="none" '
+            f'style="animation:petalBloom 6s ease-in-out infinite;animation-delay:{delay:.2f}s"/>'
+            f'<circle cx="{hcx:.1f}" cy="{hcy:.1f}" r="3" fill="rgba(63,207,196,0.65)" filter="url(#bg)" '
+            f'style="animation:petalBloom 6s ease-in-out infinite;animation-delay:{delay+0.2:.2f}s"/>'
+        )
+
+    mData = [
+        (300+272*math.cos(0.3), 300+272*math.sin(0.3), 0.72, 55),
+        (300+272*math.cos(1.5), 300+272*math.sin(1.5), 1.88, 46),
+        (300+272*math.cos(2.8), 300+272*math.sin(2.8), 2.42, 60),
+        (300+272*math.cos(4.2), 300+272*math.sin(4.2), 4.72, 42),
+        (300+272*math.cos(5.4), 300+272*math.sin(5.4), 5.12, 50),
+        (300+272*math.cos(3.6), 300+272*math.sin(3.6), 3.20, 38),
+    ]
+    mycelium = ""
+    for idx, (sx, sy, angle, ln) in enumerate(mData):
+        ex = sx + math.cos(angle) * ln;  ey = sy + math.sin(angle) * ln
+        delay = 2.5 + idx * 0.18
+        mycelium += (
+            f'<line x1="{sx:.1f}" y1="{sy:.1f}" x2="{ex:.1f}" y2="{ey:.1f}" '
+            f'stroke="rgba(155,123,196,0.70)" stroke-width="1.4" stroke-linecap="round" '
+            f'stroke-dasharray="80" style="animation:spokeCycle 5.5s ease-in-out infinite;animation-delay:{delay:.2f}s"/>'
+            f'<circle cx="{sx:.1f}" cy="{sy:.1f}" r="4.5" fill="rgba(155,123,196,0.80)" filter="url(#bg)" '
+            f'style="animation:petalBloom 5.5s ease-in-out infinite;animation-delay:{delay:.2f}s"/>'
+        )
+
+    dots_data = [
+        (300,300,9,  "rgba(63,207,196,0.95)","url(#sg)","dotBreathe 3.0s ease-in-out infinite alternate;animation-delay:0.60s"),
+        (322,300,5,  "rgba(63,207,196,0.85)","url(#bg)","dotBreathe 2.5s ease-in-out infinite alternate;animation-delay:0.85s"),
+        (300,344,5,  "rgba(200,151,61,0.85)","url(#bg)","dotBreathe 2.5s ease-in-out infinite alternate;animation-delay:1.00s"),
+        (229,300,5,  "rgba(155,123,196,0.85)","url(#bg)","dotBreathe 2.5s ease-in-out infinite alternate;animation-delay:1.15s"),
+        (300,185,5,  "rgba(63,207,196,0.85)","url(#bg)","dotBreathe 2.5s ease-in-out infinite alternate;animation-delay:1.30s"),
+        (486,300,5,  "rgba(200,151,61,0.85)","url(#bg)","dotBreathe 2.5s ease-in-out infinite alternate;animation-delay:1.45s"),
+    ]
+    dots = "".join(
+        f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fill}" filter="{flt}" style="animation:{anim}"/>'
+        for cx,cy,r,fill,flt,anim in dots_data
+    )
+
+    return f"""
+<svg viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg"
+     style="width:100%;height:100%;animation:spiralTurn 90s linear infinite">
+  <defs>
+    <filter id="bg" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="sg" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="9" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="300" cy="300" r="290" fill="rgba(4,12,6,0.50)"/>
+  <circle cx="300" cy="300" r="272" stroke="rgba(63,207,196,0.22)" stroke-width="1.1" stroke-dasharray="5 11" fill="none" style="animation:ringPulse 5s ease-in-out infinite"/>
+  <circle cx="300" cy="300" r="214" stroke="rgba(155,123,196,0.18)" stroke-width="0.75" stroke-dasharray="4 9" fill="none" style="animation:ringPulse 6.8s ease-in-out infinite;animation-delay:0.4s"/>
+  <circle cx="300" cy="300" r="152" stroke="rgba(63,207,196,0.12)" stroke-width="0.75" stroke-dasharray="3 7" fill="none" style="animation:ringPulse 8.6s ease-in-out infinite;animation-delay:0.8s"/>
+  {spokes}
+  <path d="M300 300 A22 22 0 0 1 322 300 A44 44 0 0 1 300 344 A71 71 0 0 1 229 300 A115 115 0 0 1 300 185 A186 186 0 0 1 486 300 A301 301 0 0 1 300 601"
+        stroke="rgba(63,207,196,0.94)" stroke-width="4.8" stroke-linecap="round" fill="none" filter="url(#sg)"
+        stroke-dasharray="1500" style="animation:drawCycle 14s ease-in-out infinite;animation-delay:0.65s"/>
+  <path d="M300 300 A14 14 0 0 0 286 300 A28 28 0 0 0 300 272 A45 45 0 0 0 345 300 A73 73 0 0 0 300 373 A118 118 0 0 0 182 300"
+        stroke="rgba(200,151,61,0.88)" stroke-width="3.2" stroke-linecap="round" fill="none" filter="url(#bg)"
+        stroke-dasharray="800" style="animation:drawCycleS 11.5s ease-in-out infinite;animation-delay:1.4s"/>
+  <path d="M300 300 A8 8 0 0 1 308 300 A16 16 0 0 1 300 316 A26 26 0 0 1 274 300 A42 42 0 0 1 300 258 A68 68 0 0 1 368 300"
+        stroke="rgba(155,123,196,0.80)" stroke-width="2.4" stroke-linecap="round" fill="none" filter="url(#bg)"
+        stroke-dasharray="500" style="animation:drawCycleXS 9s ease-in-out infinite;animation-delay:2.2s"/>
+  {petals}
+  {hexagons}
+  {mycelium}
+  {dots}
+</svg>"""
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HTML BUILDERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _topbar_html(stage):
+    status = '<span class="bm-pill">● Online</span>'
+    return (
+        f'<div class="bm-topbar">'
+        f'<div><span class="bm-brand">BioMimetix AI</span>'
+        f'<p class="bm-tagline">AI compass for hands-on biomimicry exploration</p></div>'
+        f'<div style="display:flex;align-items:center;gap:10px">{status}</div>'
+        f'</div>'
+    )
+
+def _timeline_html(stage):
+    items = ""
+    for i,(icon,name) in enumerate(zip(STEP_ICONS, STEP_NAMES)):
+        s = i + 1
+        cls = "bm-tstep active" if s == stage else ("bm-tstep done" if s < stage else "bm-tstep")
+        num = icon if s < stage else str(s)
+        items += f'<div class="{cls}"><div class="bm-tstep-n">{num}</div><small>{name}</small></div>'
+    return f'<div class="bm-timeline">{items}</div>'
+
+def _context_html(product, fn, organism, principle):
+    slots = [("🔬 PRODUCT", product), ("⚙️ FUNCTION", fn), ("🌿 ORGANISM", organism), ("🧬 PRINCIPLE", principle)]
+    cards = "".join(
+        f'<div class="bm-ctx-card"><span class="bm-ctx-lbl">{lbl}</span>'
+        f'<strong class="bm-ctx-val">{(val or "—")[:38]}</strong></div>'
+        for lbl, val in slots
+    )
+    return f'<div class="bm-ctx">{cards}</div>'
+
+def _step_header(icon, title, desc):
+    return (
+        f'<div class="bm-step-header">'
+        f'<div class="bm-icon-bubble">{icon}</div>'
+        f'<h1 class="bm-step-title">{title}</h1>'
+        f'<p class="bm-step-desc">{desc}</p>'
+        f'</div>'
+    )
+
+def _choice_card(label, title, body, selected=False, tag=""):
+    cls = "bm-card sel" if selected else "bm-card"
+    tag_html = '<span class="bm-card-tag">✓ Selected</span>' if selected else (f'<span class="bm-card-tag">{tag}</span>' if tag else "")
+    return (
+        f'<div class="{cls}">'
+        f'<span class="bm-lbl">{label}</span>'
+        f'<strong class="bm-card-title">{title}</strong>'
+        f'<p class="bm-card-body">{body}</p>'
+        f'{tag_html}</div>'
+    )
 
 def _show_image(image_info, caption=""):
-    """Render an image from an HTTP URL or a local file (PNG / SVG)."""
     if not image_info:
         return
     url = str(image_info.get("image_url", ""))
@@ -657,61 +1099,37 @@ def _show_image(image_info, caption=""):
                 return
             if path.suffix.lower() == ".svg":
                 b64 = base64.b64encode(path.read_bytes()).decode()
-                html = (
-                    f'<img src="data:image/svg+xml;base64,{b64}" '
-                    f'style="width:100%;border-radius:10px">'
-                )
+                html = f'<img src="data:image/svg+xml;base64,{b64}" style="width:100%;border-radius:20px 8px 20px 8px">'
                 if caption:
-                    html += f'<p style="font-size:0.78em;color:#9bc;margin-top:4px">{caption}</p>'
+                    html += f'<p style="font-size:0.78em;color:rgba(223,240,226,0.64);margin-top:6px">{caption}</p>'
                 st.markdown(html, unsafe_allow_html=True)
             else:
                 st.image(str(path), caption=caption, use_container_width=True)
     except Exception:
         pass
 
+def _organism_cycle_html():
+    n = len(_ORGANISMS)
+    total = n * 3.2
+    items = ""
+    for i, (name, trait) in enumerate(_ORGANISMS):
+        delay = i * 3.2
+        items += (
+            f'<div class="bm-org-item" style="animation:orgItem {total:.1f}s linear infinite;animation-delay:{delay:.1f}s">'
+            f'<span class="bm-org-name">{name}</span>'
+            f'<span class="bm-org-trait">{trait}</span>'
+            f'</div>'
+        )
+    return f'<div class="bm-org-cycle" style="animation:fadeInUp 0.5s ease-out 1.4s both">{items}</div>'
 
-def _card(title, body, selected=False):
-    border = "2px solid #3fCFC4" if selected else "1px solid rgba(100,200,150,0.28)"
-    return (
-        f'<div style="padding:14px;border-radius:10px;background:rgba(7,28,24,0.74);'
-        f'border:{border};margin-bottom:10px">'
-        f'<strong style="color:#c8ffe8">{title}</strong>'
-        f'<br><small style="color:#a0c8b8">{body}</small></div>'
-    )
-
-
-STEP_NAMES = [
-    "Product Analyse", "Functions", "Biomimicry",
-    "Principles", "Ideation", "2D Image", "3D Model", "Evaluate",
-]
-
-# ── Page setup ───────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# STREAMLIT APP ENTRY POINT
+# ══════════════════════════════════════════════════════════════════════════════
 
 st.set_page_config(page_title="BioMimetix AI", page_icon="🌿", layout="wide")
+st.markdown(_CSS, unsafe_allow_html=True)
 
-st.markdown("""
-<style>
-[data-testid="stAppViewContainer"] {
-    background: linear-gradient(145deg, #020907 0%, #062019 48%, #020b14 100%);
-}
-[data-testid="stHeader"] { background: transparent; }
-section[data-testid="stSidebar"] { background: rgba(5,21,18,0.85); }
-h1, h2, h3 { color: #c8ffe8 !important; }
-p, li, label, small, .stMarkdown { color: #cce8d8 !important; }
-.stButton > button { border-radius: 8px; font-weight: 600; }
-.stTextInput > div > div > input,
-.stTextArea > div > div > textarea {
-    background: rgba(7,28,24,0.6);
-    border: 1px solid rgba(100,200,150,0.4);
-    color: #e8fff1;
-    border-radius: 8px;
-}
-.stCheckbox label { color: #c8ffe8 !important; }
-.stProgress > div > div > div { background: #3fCFC4; }
-</style>
-""", unsafe_allow_html=True)
-
-# ── Session-state defaults ────────────────────────────────────────────────────
+# ── Session state ─────────────────────────────────────────────────────────────
 
 for _k, _v in {
     "stage": 0, "product": "", "product_image": None,
@@ -724,69 +1142,89 @@ for _k, _v in {
     if _k not in st.session_state:
         st.session_state[_k] = _v
 
-# ── Header ────────────────────────────────────────────────────────────────────
-
-_hcol1, _hcol2 = st.columns([5, 1])
-with _hcol1:
-    st.title("🌿 BioMimetix AI")
-    st.caption("AI compass for hands-on biomimicry exploration")
-with _hcol2:
-    st.write("")
-    st.write("")
-    if st.session_state.stage > 0:
-        if st.button("↺ New cycle", use_container_width=True):
-            for _k in list(st.session_state.keys()):
-                del st.session_state[_k]
-            st.rerun()
-
-# ── Progress ──────────────────────────────────────────────────────────────────
-
 _stage = st.session_state.stage
-if _stage > 0:
-    st.progress(_stage / 8)
-    st.caption(f"Step {_stage} / 8 — **{STEP_NAMES[_stage - 1]}**")
 
-# ── Context strip ─────────────────────────────────────────────────────────────
-
-if st.session_state.product:
-    _ctx = [f"**Product:** {st.session_state.product}"]
-    if st.session_state.selected_function:
-        _ctx.append(f"**Function:** {st.session_state.selected_function}")
-    if st.session_state.selected_organism_data:
-        _ctx.append(f"**Organism:** {st.session_state.selected_organism_data['organism']}")
-    if st.session_state.selected_principle:
-        _ctx.append(f"**Principle:** {st.session_state.selected_principle['title']}")
-    st.markdown(" · ".join(_ctx))
-
-st.divider()
-
-# ═════════════════════════════════════════════════════════════════════════════
-# STEP 1 — Product Analyse
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# LANDING PAGE (stage 0)
+# ══════════════════════════════════════════════════════════════════════════════
 
 if _stage == 0:
-    st.header("Step 1 — Product Analyse")
-    st.write(
-        "Nature has already solved every engineering problem you face. "
-        "Name your product — we find its biological twin."
-    )
+    svg_html = _organism_svg()
+    cycle_html = _organism_cycle_html()
+    left, right = st.columns([1, 1], gap="large")
+    with left:
+        st.markdown(
+            f'''<div style="display:flex;flex-direction:column;gap:24px;padding:clamp(20px,4vw,60px) 0;animation:fadeInUp 1s ease-out both">
+  <span class="bm-landing-badge">Biomimicry × Industrial Design AI</span>
+  <h1 class="bm-landing-title">BioMimetix AI</h1>
+  <p class="bm-landing-tagline">4 billion years of R&amp;D.&ensp;Zero patents.</p>
+  {cycle_html}
+  <div class="bm-stats">
+    <div class="bm-stat"><strong>3M+</strong><span>species catalogued</span></div>
+    <div class="bm-stat"><strong>4B yr</strong><span>of evolution</span></div>
+    <div class="bm-stat"><strong>0</strong><span>patents held</span></div>
+  </div>
+</div>''',
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="bm-cta">', unsafe_allow_html=True)
+        if st.button("🌿  Enter the Forest  →", type="primary", key="enter_forest"):
+            st.session_state.stage = 1
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.caption("Quick picks:")
+    with right:
+        st.markdown(
+            f'<div style="display:flex;align-items:center;justify-content:center;min-height:520px;opacity:0.78">{svg_html}</div>',
+            unsafe_allow_html=True,
+        )
+    st.stop()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SHARED CHROME (stages 1-8)
+# ══════════════════════════════════════════════════════════════════════════════
+
+_new_cycle_col, _spacer = st.columns([6, 1])
+with _spacer:
+    if st.button("↺ New cycle", type="secondary", key="new_cycle_top"):
+        for _k in list(st.session_state.keys()):
+            del st.session_state[_k]
+        st.rerun()
+
+st.markdown(_topbar_html(_stage), unsafe_allow_html=True)
+st.markdown(_timeline_html(_stage), unsafe_allow_html=True)
+st.markdown(_context_html(
+    st.session_state.product,
+    st.session_state.selected_function,
+    (st.session_state.selected_organism_data or {}).get("organism", ""),
+    (st.session_state.selected_principle or {}).get("title", ""),
+), unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 1 — Product Analyse
+# ══════════════════════════════════════════════════════════════════════════════
+
+if _stage == 1:
+    st.markdown('<div class="bm-panel">', unsafe_allow_html=True)
+    st.markdown(_step_header("🔬", "Product Analyse",
+        "Nature has solved every engineering problem you face. Name your product — we find its biological twin."),
+        unsafe_allow_html=True)
+
     _ex_cols = st.columns(5)
     for _i, _ex in enumerate(["Helmet", "Running shoe", "Drone blade", "Bicycle frame", "Water bottle"]):
         with _ex_cols[_i]:
-            if st.button(_ex, key=f"ex_{_i}"):
+            if st.button(_ex, key=f"ex_{_i}", type="secondary"):
                 st.session_state["_product_input"] = _ex
+                st.rerun()
 
     _product_name = st.text_input(
         "Product name",
         value=st.session_state.get("_product_input", ""),
-        placeholder="e.g. Helmet, running shoe, drone blade...",
+        placeholder="e.g. Helmet, running shoe, drone blade…",
         label_visibility="collapsed",
     )
-
-    if st.button("🔬 Analyze product", type="primary", disabled=not (_product_name or "").strip()):
-        with st.spinner("Deconstructing product and fetching reference image..."):
+    if st.button("🔬  Analyze product", type="primary", disabled=not (_product_name or "").strip()):
+        with st.spinner("Deconstructing product and fetching reference image…"):
             _components = deconstruct_product(DeconstructReq(product=_product_name.strip()))
             _prod_image = product_image_search(_product_name.strip())
         if _components:
@@ -795,41 +1233,45 @@ if _stage == 0:
             st.session_state.product_image = _prod_image
             if "_product_input" in st.session_state:
                 del st.session_state["_product_input"]
-            st.session_state.stage = 1
+            st.session_state.stage = 2
             st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# ═════════════════════════════════════════════════════════════════════════════
-# STEP 2 — Product Functions
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 2 — Functions
+# ══════════════════════════════════════════════════════════════════════════════
 
-elif _stage == 1:
-    st.header(f"Step 2 — {st.session_state.product}: Functions")
-    st.write("AI-suggested breakdown. Click a function card to select the one you want to redesign through nature.")
+elif _stage == 2:
+    st.markdown('<div class="bm-panel">', unsafe_allow_html=True)
+    st.markdown(_step_header("⚙️", f"{st.session_state.product}: Functions",
+        "AI-suggested breakdown. Select the function you want to redesign through nature."),
+        unsafe_allow_html=True)
 
-    _img_col, _fn_col = st.columns([1, 2])
+    _img_col, _fn_col = st.columns([1, 2], gap="large")
     with _img_col:
         if st.session_state.product_image:
             _show_image(st.session_state.product_image, caption=st.session_state.product)
 
     with _fn_col:
         _comps = st.session_state.components
-        _fn_grid = st.columns(min(3, len(_comps)))
-        for _i, _item in enumerate(_comps):
-            with _fn_grid[_i % 3]:
-                _sel = st.session_state.selected_function == _item["function"]
-                st.markdown(_card(_item["component"], _item["function"], selected=_sel), unsafe_allow_html=True)
-                if st.button(
-                    "✓ Selected" if _sel else "Select",
-                    key=f"fn_{_i}",
-                    type="primary" if _sel else "secondary",
-                    use_container_width=True,
-                ):
-                    st.session_state.selected_function = _item["function"]
-                    st.rerun()
+        _per_row = min(3, len(_comps))
+        _rows = [_comps[i:i+_per_row] for i in range(0, len(_comps), _per_row)]
+        for _row in _rows:
+            _cols = st.columns(len(_row))
+            for _j, (_item, _col) in enumerate(zip(_row, _cols)):
+                with _col:
+                    _sel = st.session_state.selected_function == _item["function"]
+                    st.markdown(_choice_card(_item["component"], _item["function"], "", selected=_sel), unsafe_allow_html=True)
+                    if st.button("✓ Selected" if _sel else "Select",
+                                 key=f"fn_{id(_item)}_{_item['function'][:10]}",
+                                 type="primary" if _sel else "secondary",
+                                 use_container_width=True):
+                        st.session_state.selected_function = _item["function"]
+                        st.rerun()
 
-    st.write("")
-    if st.button("🌿 Start Nature Quest", type="primary", disabled=not st.session_state.selected_function):
-        with st.spinner(f"Finding biological inspiration for '{st.session_state.selected_function}'..."):
+    st.markdown('</div>', unsafe_allow_html=True)
+    if st.button("🌿  Start Nature Quest", type="primary", disabled=not st.session_state.selected_function):
+        with st.spinner(f"Finding biological inspiration for '{st.session_state.selected_function}'…"):
             _bio_opts = biomimetic_search(BiomimicryReq(
                 product=st.session_state.product,
                 function=st.session_state.selected_function,
@@ -837,65 +1279,74 @@ elif _stage == 1:
         if _bio_opts:
             st.session_state.biomimicry_options = _bio_opts
             st.session_state.selected_organism_data = None
-            st.session_state.stage = 2
+            st.session_state.stage = 3
             st.rerun()
 
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 # STEP 3 — Biomimicry: Nature Quest
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 
-elif _stage == 2:
-    st.header("Step 3 — Biomimicry: Nature Quest")
-    st.write("Choose one organism, explore its resources, then abstract the principle.")
+elif _stage == 3:
+    st.markdown('<div class="bm-panel">', unsafe_allow_html=True)
+    st.markdown(_step_header("🌿", "Biomimicry: Nature Quest",
+        "Choose an organism, explore its resources, then abstract the principle."),
+        unsafe_allow_html=True)
 
     _options = st.session_state.biomimicry_options
     _sel_org = (st.session_state.selected_organism_data or {}).get("organism", "")
-
     _org_cols = st.columns(min(5, len(_options)))
-    for _i, _opt in enumerate(_options):
-        with _org_cols[_i]:
-            _is_sel = _sel_org == _opt["organism"]
-            if st.button(
-                _opt["organism"],
-                key=f"org_select_{_i}",
-                type="primary" if _is_sel else "secondary",
-                use_container_width=True,
-            ):
-                st.session_state.selected_organism_data = _opt
+    for _i, _opt in enumerate(_org_cols):
+        with _opt:
+            _o = _options[_i]
+            _active = _sel_org == _o["organism"]
+            if st.button(_o["organism"], key=f"org_{_i}",
+                         type="primary" if _active else "secondary",
+                         use_container_width=True):
+                st.session_state.selected_organism_data = _options[_i]
                 st.rerun()
 
     _org_data = st.session_state.selected_organism_data
     if _org_data:
         st.divider()
         _org_name = _org_data["organism"]
-
-        _img_c, _info_c = st.columns([1, 2])
+        _img_c, _info_c = st.columns([1, 2], gap="large")
         with _img_c:
-            with st.spinner(f"Loading image for {_org_name}..."):
+            with st.spinner(f"Loading image for {_org_name}…"):
                 _org_img = biodiversity_reference(ReferenceImageReq(
                     organism=_org_name,
                     function=st.session_state.selected_function,
                 ))
-            _caption = _org_name + (f" — {_org_img.get('source', '')}" if _org_img else "")
-            _show_image(_org_img, caption=_caption)
+            _cap = _org_name + (f" — {_org_img.get('source', '')}" if _org_img else "")
+            _show_image(_org_img, caption=_cap)
 
         with _info_c:
-            st.subheader(_org_name)
+            st.markdown(f'<strong style="color:#dff0e2;font-size:1.4rem;font-weight:800">{_org_name}</strong>', unsafe_allow_html=True)
             st.write(_org_data.get("rationale", ""))
-
             _pack = _org_data.get("exploration_pack", {})
             _watch = _pack.get("watch", [])
             if _watch:
-                st.markdown("**📺 Watch**")
+                st.markdown('**📺 Watch**')
                 for _w in _watch:
-                    st.markdown(f"- [{_w['title']}]({_w['url']}) — *{_w.get('description', '')}*")
-
+                    _wu = _w.get("url", "#")
+                    _wt = _w.get("title", "")
+                    _wd = _w.get("description", "")
+                    st.markdown(
+                        f'<a class="bm-resource" href="{_wu}" target="_blank">'
+                        f'<span class="bm-rtitle">{_wt}</span>'
+                        f'<span class="bm-rdesc">{_wd}</span></a>',
+                        unsafe_allow_html=True)
             _read = _pack.get("read", [])
             if _read:
-                st.markdown("**📖 Read**")
+                st.markdown('**📖 Read**')
                 for _r in _read:
-                    st.markdown(f"- [{_r['title']}]({_r['url']}) — *{_r.get('description', '')}*")
-
+                    _ru = _r.get("url", "#")
+                    _rt = _r.get("title", "")
+                    _rd = _r.get("description", "")
+                    st.markdown(
+                        f'<a class="bm-resource" href="{_ru}" target="_blank">'
+                        f'<span class="bm-rtitle">{_rt}</span>'
+                        f'<span class="bm-rdesc">{_rd}</span></a>',
+                        unsafe_allow_html=True)
             _act = _pack.get("act", {})
             if _act:
                 with st.expander(f"🔭 Nature Quest — {_act.get('title', 'Act')}", expanded=True):
@@ -903,62 +1354,62 @@ elif _stage == 2:
                     for _c in _act.get("checklist", []):
                         st.markdown(f"- {_c}")
 
-        st.divider()
-        _gate = st.checkbox(
-            "I have explored these resources and made my own observations.",
-            key=f"gate_explore_{_org_name}",
-        )
-        if st.button("🔬 Abstract the principle", type="primary", disabled=not _gate):
-            with st.spinner(f"Abstracting principles from {_org_name}..."):
+    st.markdown('</div>', unsafe_allow_html=True)
+    if _org_data:
+        _gate = st.checkbox("I have explored these resources and made my own observations.", key="gate_explore")
+        if st.button("🔬  Abstract the principle", type="primary", disabled=not _gate):
+            with st.spinner(f"Abstracting principles from {_org_data['organism']}…"):
                 _abstractions = principle_abstraction(AbstractReq(
                     product=st.session_state.product,
                     function=st.session_state.selected_function,
-                    organism=_org_name,
+                    organism=_org_data["organism"],
                 ))
             if _abstractions:
                 st.session_state.abstractions = _abstractions
                 st.session_state.selected_principle = None
-                st.session_state.stage = 3
+                st.session_state.stage = 4
                 st.rerun()
 
-# ═════════════════════════════════════════════════════════════════════════════
-# STEP 4 — Principle Abstraction + Sketch Gate
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 4 — Principle Abstraction
+# ══════════════════════════════════════════════════════════════════════════════
 
-elif _stage == 3:
-    st.header("Step 4 — Principle Abstraction")
-    st.write("Select one abstract principle, then sketch it before ideation becomes available.")
+elif _stage == 4:
+    st.markdown('<div class="bm-panel">', unsafe_allow_html=True)
+    st.markdown(_step_header("🧬", "Principle Abstraction",
+        "Select one abstract principle, then sketch it before ideation becomes available."),
+        unsafe_allow_html=True)
 
     _abstractions = st.session_state.abstractions or {}
     _principles = _abstractions.get("principles", [])
     _sketch_pack = _abstractions.get("sketch_pack", {})
 
-    _pr_cols = st.columns(min(3, len(_principles)))
-    for _i, _p in enumerate(_principles):
-        with _pr_cols[_i]:
-            _sel = (st.session_state.selected_principle or {}).get("title") == _p["title"]
-            st.markdown(_card(_p["title"], _p["principle"], selected=_sel), unsafe_allow_html=True)
-            if st.button(
-                "✓ Selected" if _sel else "Select",
-                key=f"pr_{_i}",
-                type="primary" if _sel else "secondary",
-                use_container_width=True,
-            ):
-                st.session_state.selected_principle = _p
-                st.rerun()
+    _pr_rows = [_principles[i:i+3] for i in range(0, len(_principles), 3)]
+    for _row in _pr_rows:
+        _cols = st.columns(len(_row))
+        for _p, _col in zip(_row, _cols):
+            with _col:
+                _sel = (st.session_state.selected_principle or {}).get("title") == _p["title"]
+                st.markdown(_choice_card("PRINCIPLE", _p["title"], _p["principle"], selected=_sel), unsafe_allow_html=True)
+                if st.button("✓ Selected" if _sel else "Select",
+                             key=f"pr_{_p['title'][:12]}",
+                             type="primary" if _sel else "secondary",
+                             use_container_width=True):
+                    st.session_state.selected_principle = _p
+                    st.rerun()
 
-    st.divider()
     if _sketch_pack:
-        st.subheader("✏️ " + _sketch_pack.get("title", "Sketching Assignment"))
-        st.markdown(f"**Grab pen and paper** — {_sketch_pack.get('prompt', '')}")
+        st.divider()
+        st.markdown(f'<strong style="color:#3fcfc4">✏️ {_sketch_pack.get("title","Sketching Assignment")}</strong>', unsafe_allow_html=True)
+        st.write(f"**Grab pen and paper** — {_sketch_pack.get('prompt', '')}")
         for _c in _sketch_pack.get("checks", []):
             st.markdown(f"- {_c}")
-        st.write("")
 
+    st.markdown('</div>', unsafe_allow_html=True)
     _sketch_done = st.checkbox("Sketch completed.", key="sketch_done_gate")
     _can_ideate = bool(st.session_state.selected_principle) and _sketch_done
-    if st.button("💡 Move to ideation", type="primary", disabled=not _can_ideate):
-        with st.spinner("Generating concepts..."):
+    if st.button("💡  Move to ideation", type="primary", disabled=not _can_ideate):
+        with st.spinner("Generating concepts…"):
             _concepts = ideate_concepts(IdeateReq(
                 product=st.session_state.product,
                 principle=st.session_state.selected_principle["title"],
@@ -966,114 +1417,111 @@ elif _stage == 3:
         if _concepts:
             st.session_state.concepts = _concepts
             st.session_state.selected_concept = None
-            st.session_state.stage = 4
+            st.session_state.stage = 5
             st.rerun()
 
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 # STEP 5 — Ideation
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 
-elif _stage == 4:
-    st.header("Step 5 — Ideation and Creation")
-    st.write("Select one concept. Before visualization, pause and refine what must remain physically testable.")
+elif _stage == 5:
+    st.markdown('<div class="bm-panel">', unsafe_allow_html=True)
+    st.markdown(_step_header("💡", "Ideation and Creation",
+        "Select one concept. Pause to refine what must remain physically testable."),
+        unsafe_allow_html=True)
 
     _concepts = st.session_state.concepts
-    _c_cols = st.columns(min(3, len(_concepts)))
-    for _i, _c in enumerate(_concepts):
-        with _c_cols[_i % 3]:
-            _sel = (st.session_state.selected_concept or {}).get("concept_name") == _c["concept_name"]
-            st.markdown(_card(_c["concept_name"], _c.get("description", ""), selected=_sel), unsafe_allow_html=True)
-            if st.button(
-                "✓ Selected" if _sel else "Select",
-                key=f"concept_{_i}",
-                type="primary" if _sel else "secondary",
-                use_container_width=True,
-            ):
-                st.session_state.selected_concept = _c
-                st.rerun()
+    _c_rows = [_concepts[i:i+3] for i in range(0, len(_concepts), 3)]
+    for _row in _c_rows:
+        _cols = st.columns(len(_row))
+        for _c, _col in zip(_row, _cols):
+            with _col:
+                _sel = (st.session_state.selected_concept or {}).get("concept_name") == _c["concept_name"]
+                st.markdown(_choice_card("CONCEPT", _c["concept_name"], _c.get("description",""), selected=_sel), unsafe_allow_html=True)
+                if st.button("✓ Selected" if _sel else "Select",
+                             key=f"concept_{_c['concept_name'][:12]}",
+                             type="primary" if _sel else "secondary",
+                             use_container_width=True):
+                    st.session_state.selected_concept = _c
+                    st.rerun()
 
-    st.divider()
-    _refined = st.checkbox(
-        "I have mentally refined this concept and identified what should be tested physically.",
-        key="concept_refined_gate",
-    )
+    st.markdown('</div>', unsafe_allow_html=True)
+    _refined = st.checkbox("I have mentally refined this concept and identified what should be tested physically.", key="concept_refined_gate")
     _can_prompt = bool(st.session_state.selected_concept) and _refined
-    if st.button("🎨 Generate strict 2D prompt", type="primary", disabled=not _can_prompt):
-        with st.spinner("Generating image prompt..."):
+    if st.button("🎨  Generate strict 2D prompt", type="primary", disabled=not _can_prompt):
+        with st.spinner("Generating image prompt…"):
             _result = generate_prompt(PromptReq(
                 product=st.session_state.product,
                 concept=st.session_state.selected_concept["concept_name"],
             ))
         if _result:
             st.session_state.final_prompt = _result.get("prompt", "")
-            st.session_state.stage = 5
+            st.session_state.stage = 6
             st.rerun()
 
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 # STEP 6 — 2D Image Prompt
-# ═════════════════════════════════════════════════════════════════════════════
-
-elif _stage == 5:
-    st.header("Step 6 — 2D Image Prompt")
-    st.write(
-        "Copy this strict prompt into your external image generator "
-        "(Midjourney, DALL-E, Stable Diffusion). Keep the output clean for 3D conversion."
-    )
-
-    st.code(st.session_state.final_prompt, language=None)
-    st.info("💡 Click the copy icon in the top-right corner of the box above to copy the prompt.")
-
-    _prompt_used = st.checkbox("I have copied or used the prompt externally.", key="prompt_used_gate")
-    if st.button("➡️ Continue to 3D pathway", type="primary", disabled=not _prompt_used):
-        st.session_state.stage = 6
-        st.rerun()
-
-# ═════════════════════════════════════════════════════════════════════════════
-# STEP 7 — 3D Model
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 
 elif _stage == 6:
-    st.header("Step 7 — 3D Model: Printpal Pathway")
-    st.write("Convert the clean 2D image into a printable model. The AI stops here; your hands take over.")
-
-    _steps_3d = [
-        ("Upload", "Take the single-object 2D image and upload it into Printpal or another image-to-3D tool."),
-        ("Inspect", "Rotate the mesh. Look for broken surfaces, impossible overhangs, and lost biological features."),
-        ("Export", "Export an STL. Keep a screenshot of the mesh before slicing."),
-        ("Print", "3D print a small prototype, even if the model is imperfect."),
-    ]
-    _s3d_cols = st.columns(4)
-    for _i, (_t, _tx) in enumerate(_steps_3d):
-        with _s3d_cols[_i]:
-            st.markdown(
-                f'<div style="padding:16px;border-radius:10px;background:rgba(7,28,24,0.74);'
-                f'border:1px solid rgba(100,200,150,0.3);min-height:160px">'
-                f'<strong style="color:#3fCFC4">{_t}</strong><br><br>'
-                f'<small style="color:#a0c8b8">{_tx}</small></div>',
-                unsafe_allow_html=True,
-            )
-
-    st.divider()
-    _stl_done = st.checkbox("I have created or inspected an STL pathway.", key="stl_done_gate")
-    if st.button("📋 Evaluate physical result", type="primary", disabled=not _stl_done):
+    st.markdown('<div class="bm-panel">', unsafe_allow_html=True)
+    st.markdown(_step_header("🎨", "2D Image Prompt",
+        "Copy this strict prompt into your external image generator (Midjourney, DALL-E, Stable Diffusion)."),
+        unsafe_allow_html=True)
+    st.code(st.session_state.final_prompt, language=None)
+    st.info("💡 Click the copy icon in the top-right corner of the box above to copy the prompt.")
+    st.markdown('</div>', unsafe_allow_html=True)
+    _prompt_used = st.checkbox("I have copied or used the prompt externally.", key="prompt_used_gate")
+    if st.button("➡️  Continue to 3D pathway", type="primary", disabled=not _prompt_used):
         st.session_state.stage = 7
         st.rerun()
 
-# ═════════════════════════════════════════════════════════════════════════════
-# STEP 8 — Evaluate
-# ═════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 7 — 3D Model
+# ══════════════════════════════════════════════════════════════════════════════
 
 elif _stage == 7:
-    st.header("Step 8 — Evaluate")
-    st.write("Log what failed. Biomimicry improves when the physical prototype argues back.")
+    st.markdown('<div class="bm-panel">', unsafe_allow_html=True)
+    st.markdown(_step_header("🖨️", "3D Model: Printpal Pathway",
+        "Convert the clean 2D image into a printable model. The AI stops here; your hands take over."),
+        unsafe_allow_html=True)
 
-    _f  = st.text_area("How did the translation from nature → AI → physical object fail?", key="ev_failure",   height=100)
-    _n  = st.text_area("What nuances of the biological organism were lost?",                key="ev_nuance",    height=100)
-    _pf = st.text_area("Did the 3D print function as expected?",                            key="ev_printfn",   height=100)
-    _ni = st.text_area("What should change in the next iteration?",                         key="ev_nextiter",  height=100)
+    _steps_3d = [
+        ("Upload",  "Take the single-object 2D image and upload it into Printpal or another image-to-3D tool."),
+        ("Inspect", "Rotate the mesh. Look for broken surfaces, impossible overhangs, and lost biological features."),
+        ("Export",  "Export an STL. Keep a screenshot of the mesh before slicing."),
+        ("Print",   "3D print a small prototype, even if the model is imperfect."),
+    ]
+    _grid_html = '<div class="bm-grid bm-grid4">' + "".join(
+        f'<div class="bm-card"><span class="bm-lbl">STEP {i+1}</span>' +
+        f'<strong class="bm-card-title">{t}</strong><p class="bm-card-body">{b}</p></div>'
+        for i, (t, b) in enumerate(_steps_3d)
+    ) + '</div>'
+    st.markdown(_grid_html, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    _stl_done = st.checkbox("I have created or inspected an STL pathway.", key="stl_done_gate")
+    if st.button("📋  Evaluate physical result", type="primary", disabled=not _stl_done):
+        st.session_state.stage = 8
+        st.rerun()
 
-    _all_done = all(len((v or "").strip()) > 8 for v in [_f, _n, _pf, _ni])
-    if st.button("✅ Finish and start new cycle", type="primary", disabled=not _all_done):
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 8 — Evaluate
+# ══════════════════════════════════════════════════════════════════════════════
+
+elif _stage == 8:
+    st.markdown('<div class="bm-panel">', unsafe_allow_html=True)
+    st.markdown(_step_header("📋", "Evaluate",
+        "Log what failed. Biomimicry improves when the physical prototype argues back."),
+        unsafe_allow_html=True)
+
+    _q1 = st.text_area("How did the translation from nature → AI → physical object fail?",  key="ev_failure",  height=110)
+    _q2 = st.text_area("What nuances of the biological organism were lost?",                  key="ev_nuance",   height=110)
+    _q3 = st.text_area("Did the 3D print function as expected?",                              key="ev_printfn",  height=110)
+    _q4 = st.text_area("What should change in the next iteration?",                           key="ev_nextiter", height=110)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    _all_done = all(len((v or "").strip()) > 8 for v in [_q1, _q2, _q3, _q4])
+    if st.button("✅  Finish and start new cycle", type="primary", disabled=not _all_done):
         for _k in list(st.session_state.keys()):
             del st.session_state[_k]
         st.rerun()
