@@ -16,6 +16,7 @@ except ImportError:
     _AnthropicClient = None
 from asknature import asknature_biomimicry_options, asknature_search
 from product_images import product_image_search
+from local_fallback_images import animal_fallback_image
 
 
 class BackendError(RuntimeError):
@@ -443,7 +444,12 @@ def wikimedia_reference(req):
     }
 
 def biodiversity_reference(req):
-    return inaturalist_reference(req) or wikimedia_reference(req) or fallback_reference_svg(req)
+    return (
+        inaturalist_reference(req)
+        or wikimedia_reference(req)
+        or animal_fallback_image(req.organism, req.function)
+        or fallback_reference_svg(req)
+    )
 
 def generate_image(prompt, filename):
     path = image_dir / filename

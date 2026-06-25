@@ -7,6 +7,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from local_fallback_images import product_fallback_image
+
 
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 USER_AGENT = "BioMimetix product image connector/0.1"
@@ -23,19 +25,25 @@ def product_image_search(product, hint=""):
 
     # Bypass cache when a hint is provided so users always get a fresh search
     if hint:
-        return _commons_product_image(product, hint=hint)
+        return _with_local_fallback(_commons_product_image(product, hint=hint), product, hint)
 
     cache = _load_cache()
     cache_key = f"{CACHE_VERSION}:commons:{product.lower()}"
     now = int(time.time())
     cached = cache.get(cache_key)
     if cached and now - cached.get("fetched_at", 0) < CACHE_TTL_SECONDS:
-        return cached.get("result", _empty_response(product))
+        return _with_local_fallback(cached.get("result", _empty_response(product)), product, hint)
 
-    result = _commons_product_image(product)
+    result = _with_local_fallback(_commons_product_image(product), product, hint)
     cache[cache_key] = {"fetched_at": now, "result": result}
     _save_cache(cache)
     return result
+
+
+def _with_local_fallback(result, product, hint=""):
+    if result.get("image_url"):
+        return result
+    return product_fallback_image(product, hint) or result
 
 
 def _commons_product_image(product, hint=""):

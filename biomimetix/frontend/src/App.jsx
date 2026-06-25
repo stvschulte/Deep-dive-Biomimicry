@@ -15,7 +15,6 @@ import {
   ThumbsDown,
   ThumbsUp,
   Video,
-  X,
 } from 'lucide-react';
 import OrganicBackground from './OrganicBackground.jsx';
 import LandingPage from './LandingPage.jsx';
@@ -28,11 +27,11 @@ const normalizedApiBase = configuredApiBase.replace(/\/$/, '');
 const BACKEND_BASE = normalizedApiBase.replace('/api', '');
 
 const HELMET_IMAGES = [
-  '/images/helmets/helmet-1.svg',
-  '/images/helmets/helmet-2.svg',
-  '/images/helmets/helmet-3.svg',
-  '/images/helmets/helmet-4.svg',
-  '/images/helmets/helmet-5.svg',
+  '/images/fallback/product_helmets/helmet-1.jpg',
+  '/images/fallback/product_helmets/helmet-2.jpg',
+  '/images/fallback/product_helmets/helmet-3.jpg',
+  '/images/fallback/product_helmets/helmet-4.jpg',
+  '/images/fallback/product_helmets/helmet-5.jpg',
 ];
 
 /* ── Framer Motion variants ── */
@@ -134,10 +133,10 @@ function App() {
 
   /* ── New state for about page + function actions ── */
   const [showAbout, setShowAbout] = useState(false);
+  const [pageTurning, setPageTurning] = useState(false);
   const [rejectedFunctions, setRejectedFunctions] = useState(new Set());
   const [approvedFunctions, setApprovedFunctions] = useState(new Set());
   const [helmetImageIndex, setHelmetImageIndex] = useState(0);
-  const [regenLoading, setRegenLoading] = useState(null);
 
   /* ── Step transition orchestration ── */
   const [displayedStep, setDisplayedStep]   = useState(0);
@@ -166,8 +165,8 @@ function App() {
   }, []);
 
   const functions = useMemo(
-    () => uniqueFunctions(breakdown).filter((item) => !rejectedFunctions.has(item.function)),
-    [breakdown, rejectedFunctions],
+    () => uniqueFunctions(breakdown),
+    [breakdown],
   );
 
   const requestJson = async (endpoint, payload) => {
@@ -242,30 +241,6 @@ function App() {
       cycleHelmetImage();
     } else {
       redoProductImage(hint);
-    }
-  };
-
-  const regenFunction = async (component, currentFunction) => {
-    const key = `${component}:${currentFunction}`;
-    setRegenLoading(key);
-    setError('');
-    try {
-      const data = await requestJson('regen-function', {
-        product: productName,
-        component,
-        current_function: currentFunction,
-      });
-      setBreakdown((prev) => {
-        const next = [...prev];
-        const idx = next.findIndex((bd) => bd.component === component && bd.function === currentFunction);
-        if (idx !== -1) next[idx] = { ...next[idx], function: data.function };
-        return next;
-      });
-      if (selectedFunction?.function === currentFunction) setSelectedFunction(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setRegenLoading(null);
     }
   };
 
@@ -377,6 +352,14 @@ function App() {
     });
   };
 
+  const beginPageTurn = () => {
+    setPageTurning(true);
+    setTimeout(() => {
+      setShowAbout(false); // pageTurning still true → Framer exit is instant
+      setTimeout(() => setPageTurning(false), 60);
+    }, 720);
+  };
+
   const reset = () => {
     skipNextTransition.current = true;
     setStep(1);
@@ -406,7 +389,6 @@ function App() {
     setRejectedFunctions(new Set());
     setApprovedFunctions(new Set());
     setHelmetImageIndex(0);
-    setRegenLoading(null);
   };
 
   return (
@@ -466,15 +448,15 @@ function App() {
         {displayedStep >= 1 && (
         <motion.section
           key={showAbout ? 'about' : displayedStep}
-          className={`step-panel${showAbout ? ' about-panel' : ''}`}
+          className={`step-panel${showAbout ? ' about-panel' : ''}${pageTurning ? ' page-turning' : ''}`}
           variants={stepVariants}
           initial="initial"
           animate="animate"
-          exit="exit"
+          exit={pageTurning ? { opacity: 0, transition: { duration: 0 } } : 'exit'}
           transition={{ duration: 0.45, ease: 'easeOut' }}
         >
           {showAbout && (
-            <AboutPage onBegin={() => setShowAbout(false)} />
+            <AboutPage onBegin={beginPageTurn} />
           )}
 
           {!showAbout && displayedStep === 1 && (
@@ -495,8 +477,7 @@ function App() {
               approvedFunctions={approvedFunctions}
               setApprovedFunctions={setApprovedFunctions}
               onRejectFunction={(fn) => setRejectedFunctions((prev) => new Set([...prev, fn]))}
-              onRegenFunction={regenFunction}
-              regenLoading={regenLoading}
+              rejectedFunctions={rejectedFunctions}
               productImage={productImage}
               imageRedoLoading={imageRedoLoading}
               imageRedoHint={imageRedoHint}
@@ -892,14 +873,14 @@ function StepIntro({ productName, setProductName, onAnalyze }) {
 
 function StepFunctions({
   productName, breakdown, functions, selectedFunction, setSelectedFunction,
-  approvedFunctions, setApprovedFunctions, onRejectFunction, onRegenFunction, regenLoading,
+  approvedFunctions, setApprovedFunctions, onRejectFunction, rejectedFunctions,
   productImage, imageRedoLoading, imageRedoHint, setImageRedoHint, onRedoImage, isHelmet,
   explodedView, onLoadExplodedView, onContinue,
 }) {
   return (
     <>
       <StepHeader icon={<Box />} eyebrow="Step 2" title={`${productName} — Functions`}>
-        Approve the functions you want to explore, reject ones that don't fit, or refresh for alternatives.
+        Approve the functions you want to explore, or reject ones that don't fit.
         Select one function to continue to the Nature Quest.
       </StepHeader>
 
@@ -952,19 +933,19 @@ function StepFunctions({
         {/* ── Right: function suggestion cards ── */}
         <div className="product-functions-cards">
           <p className="functions-hint">
-            <Sparkles size={13} /> AI-suggested functions — approve, reject or refresh each one
+            <Sparkles size={13} /> AI-suggested functions — approve or reject each one
           </p>
           <motion.div className="card-grid" variants={containerVariants} initial="initial" animate="animate">
             {functions.map((item) => {
               const key = `${item.component}-${item.function}`;
-              const regenKey = `${item.component}:${item.function}`;
+              const rejected = rejectedFunctions.has(item.function);
               return (
                 <FunctionCard
                   key={key}
                   item={item}
-                  active={selectedFunction?.function === item.function}
+                  active={!rejected && selectedFunction?.function === item.function}
                   approved={approvedFunctions.has(item.function)}
-                  isRegenLoading={regenLoading === regenKey}
+                  rejected={rejected}
                   onClick={() => setSelectedFunction(item)}
                   onApprove={() => {
                     setSelectedFunction(item);
@@ -974,7 +955,6 @@ function StepFunctions({
                     if (selectedFunction?.function === item.function) setSelectedFunction(null);
                     onRejectFunction(item.function);
                   }}
-                  onRefresh={() => onRegenFunction(item.component, item.function)}
                 />
               );
             })}
@@ -1299,14 +1279,15 @@ function Question({ label, value, onChange }) {
   );
 }
 
-function FunctionCard({ item, active, approved, isRegenLoading, onClick, onApprove, onReject, onRefresh }) {
+function FunctionCard({ item, active, approved, rejected, onClick, onApprove, onReject }) {
   return (
     <motion.div
-      className={`choice-card function-card ${active ? 'active' : ''} ${approved ? 'approved' : ''}`}
+      className={`choice-card function-card ${active ? 'active' : ''} ${approved ? 'approved' : ''} ${rejected ? 'rejected' : ''}`}
       variants={cardVariants}
     >
       <button
         className="function-card-body ripple-btn"
+        disabled={rejected}
         onClick={(e) => { createRipple(e); onClick?.(); }}
       >
         <strong>{item.component}</strong>
@@ -1317,23 +1298,16 @@ function FunctionCard({ item, active, approved, isRegenLoading, onClick, onAppro
           className={`fn-action fn-approve ${approved ? 'fn-active' : ''}`}
           onClick={(e) => { e.stopPropagation(); onApprove?.(); }}
           title="Approve this function"
+          disabled={rejected}
         >
           <ThumbsUp size={13} />
         </button>
         <button
           className="fn-action fn-reject"
           onClick={(e) => { e.stopPropagation(); onReject?.(); }}
-          title="Remove this function"
+          title="Disable this function"
         >
           <ThumbsDown size={13} />
-        </button>
-        <button
-          className={`fn-action fn-refresh ${isRegenLoading ? 'fn-spinning' : ''}`}
-          onClick={(e) => { e.stopPropagation(); onRefresh?.(); }}
-          disabled={isRegenLoading}
-          title="Suggest an alternative function"
-        >
-          <RefreshCw size={13} />
         </button>
       </div>
     </motion.div>

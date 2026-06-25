@@ -1,0 +1,687 @@
+{
+  "generated_by": "scripts/fetch_fallback_images.py",
+  "images": [
+    {
+      "category": "product_helmets",
+      "path": "product_helmets/helmet-1.jpg",
+      "title": "Bicycle Helmet 0085.jpg",
+      "source": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Bicycle_Helmet_0085.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "Ashley Pomeroy",
+      "tags": [
+        "cycling helmet",
+        "bike helmet",
+        "product",
+        "protection"
+      ],
+      "functions": [
+        "head protection",
+        "impact absorption",
+        "ventilation"
+      ]
+    },
+    {
+      "category": "product_helmets",
+      "path": "product_helmets/helmet-2.jpg",
+      "title": "Bicycle white helmet from ABUS.jpg",
+      "source": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Bicycle_white_helmet_from_ABUS.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "Afifa Afrin",
+      "tags": [
+        "cycling helmet",
+        "bike helmet",
+        "product",
+        "protection"
+      ],
+      "functions": [
+        "head protection",
+        "impact absorption",
+        "ventilation"
+      ]
+    },
+    {
+      "category": "product_helmets",
+      "path": "product_helmets/helmet-3.jpg",
+      "title": "Bicycle white helmet from ABUS 2.jpg",
+      "source": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Bicycle_white_helmet_from_ABUS_2.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "Afifa Afrin",
+      "tags": [
+        "cycling helmet",
+        "bike helmet",
+        "product",
+        "protection"
+      ],
+      "functions": [
+        "head protection",
+        "impact absorption",
+        "ventilation"
+      ]
+    },
+    {
+      "category": "product_helmets",
+      "path": "product_helmets/helmet-4.jpg",
+      "title": "Bicycle white helmet from bikemate.jpg",
+      "source": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Bicycle_white_helmet_from_bikemate.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "Afifa Afrin",
+      "tags": [
+        "cycling helmet",
+        "bike helmet",
+        "product",
+        "protection"
+      ],
+      "functions": [
+        "head protection",
+        "impact absorption",
+        "ventilation"
+      ]
+    },
+    {
+      "category": "product_helmets",
+      "path": "product_helmets/helmet-5.jpg",
+      "title": "Cardboard cycling helmet (5933296485).jpg",
+      "source": "Wikimedia Commons",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Cardboard_cycling_helmet_(5933296485).jpg",
+      "license": "CC BY 2.0",
+      "attribution": "Paul Hudson from United Kingdom",
+      "tags": [
+        "cycling helmet",
+        "bike helmet",
+        "product",
+        "protection"
+      ],
+      "functions": [
+        "head protection",
+        "impact absorption",
+        "ventilation"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/armadillo.jpg",
+      "common_name": "Armadillo",
+      "scientific_name": "Armadillo",
+      "title": "Armadillo",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/319940",
+      "license": "cc-by-nc",
+      "attribution": "(c) Felix Riegel, some rights reserved (CC BY-NC), uploaded by Felix Riegel",
+      "tags": [
+        "armadillo",
+        "armadillo"
+      ],
+      "functions": [
+        "protection",
+        "impact",
+        "armor",
+        "layering"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/pangolin.jpg",
+      "common_name": "Pangolin",
+      "scientific_name": "Smutsia temminckii",
+      "title": "Temminck's Ground Pangolin",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/75083",
+      "license": "cc-by-nc",
+      "attribution": "(c) Michael 2020, some rights reserved (CC BY-NC), uploaded by Michael 2020",
+      "tags": [
+        "pangolin",
+        "smutsia temminckii"
+      ],
+      "functions": [
+        "protection",
+        "scales",
+        "curling",
+        "armor"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/gecko.jpg",
+      "common_name": "Gecko",
+      "scientific_name": "Hemidactylus turcicus",
+      "title": "Mediterranean House Gecko",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/34435",
+      "license": "cc-by-nc",
+      "attribution": "(c) Ty Smith, some rights reserved (CC BY-NC), uploaded by Ty Smith",
+      "tags": [
+        "gecko",
+        "hemidactylus turcicus"
+      ],
+      "functions": [
+        "adhesion",
+        "surface contact",
+        "grip"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/honeybee.jpg",
+      "common_name": "Honeybee",
+      "scientific_name": "Apini",
+      "title": "Honey Bees",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/538904",
+      "license": "cc-by",
+      "attribution": "(c) Karunakar Rayker, some rights reserved (CC BY)",
+      "tags": [
+        "honeybee",
+        "apini"
+      ],
+      "functions": [
+        "lightweight structure",
+        "hexagonal packing",
+        "material efficiency"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/kingfisher.jpg",
+      "common_name": "Kingfisher",
+      "scientific_name": "Coraciiformes",
+      "title": "Rollers, Kingfishers, and Allies",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/2114",
+      "license": "",
+      "attribution": "(c) Carlos N. G. Bocos, all rights reserved, uploaded by Carlos N. G. Bocos",
+      "tags": [
+        "kingfisher",
+        "coraciiformes"
+      ],
+      "functions": [
+        "streamlining",
+        "low drag",
+        "impact entry"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/woodpecker.jpg",
+      "common_name": "Woodpecker",
+      "scientific_name": "Melanerpes radiolatus",
+      "title": "Jamaican Woodpecker",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/18159",
+      "license": "cc-by-nc",
+      "attribution": "(c) Chris G Earley, some rights reserved (CC BY-NC), uploaded by Chris G Earley",
+      "tags": [
+        "woodpecker",
+        "melanerpes radiolatus"
+      ],
+      "functions": [
+        "shock absorption",
+        "impact protection",
+        "vibration damping"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/mantis-shrimp.jpg",
+      "common_name": "Mantis shrimp",
+      "scientific_name": "Hoplocarida",
+      "title": "Mantis Shrimps",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/774772",
+      "license": "",
+      "attribution": "(c) Jenny, all rights reserved, uploaded by Jenny",
+      "tags": [
+        "mantis shrimp",
+        "hoplocarida"
+      ],
+      "functions": [
+        "impact",
+        "fracture resistance",
+        "energy storage"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/sea-turtle.jpg",
+      "common_name": "Sea turtle",
+      "scientific_name": "Chelonioidea",
+      "title": "Sea Turtles",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/372234",
+      "license": "cc-by",
+      "attribution": "(c) Iv\u00e1n Cumpi\u00e1n, some rights reserved (CC BY), uploaded by Iv\u00e1n Cumpi\u00e1n",
+      "tags": [
+        "sea turtle",
+        "chelonioidea"
+      ],
+      "functions": [
+        "shell protection",
+        "streamlining",
+        "navigation"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/porcupine.jpg",
+      "common_name": "Porcupine",
+      "scientific_name": "Erethizon dorsatum",
+      "title": "North American Porcupine",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/44026",
+      "license": "cc-by-nc",
+      "attribution": "(c) mistycal, some rights reserved (CC BY-NC)",
+      "tags": [
+        "porcupine",
+        "erethizon dorsatum"
+      ],
+      "functions": [
+        "puncture",
+        "deterrence",
+        "barbed attachment"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/shark.jpg",
+      "common_name": "Shark",
+      "scientific_name": "Elasmobranchii",
+      "title": "Sharks and Rays",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/47273",
+      "license": "cc-by-nc",
+      "attribution": "(c) Erik Schl\u00f6gl, some rights reserved (CC BY-NC), uploaded by Erik Schl\u00f6gl",
+      "tags": [
+        "shark",
+        "elasmobranchii"
+      ],
+      "functions": [
+        "drag reduction",
+        "surface texture",
+        "flow control"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/owl.jpg",
+      "common_name": "Owl",
+      "scientific_name": "Noctuoidea",
+      "title": "Owlet Moths and Allies",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/47607",
+      "license": "",
+      "attribution": "(c) Julien Rouard - Dreamtime Nature Photography, all rights reserved, uploaded by Julien Rouard - Dreamtime Nature Photography",
+      "tags": [
+        "owl",
+        "noctuoidea"
+      ],
+      "functions": [
+        "silent flight",
+        "noise reduction",
+        "edge control"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/dragonfly.jpg",
+      "common_name": "Dragonfly",
+      "scientific_name": "Anisoptera",
+      "title": "Dragonflies",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/47927",
+      "license": "cc-by-nc",
+      "attribution": "(c) Jim Moore, some rights reserved (CC BY-NC), uploaded by Jim Moore",
+      "tags": [
+        "dragonfly",
+        "anisoptera"
+      ],
+      "functions": [
+        "lightweight wings",
+        "maneuverability",
+        "stability"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/humpback-whale.jpg",
+      "common_name": "Humpback whale",
+      "scientific_name": "Megaptera novaeangliae",
+      "title": "Humpback Whale",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/41566",
+      "license": "cc-by-nc",
+      "attribution": "(c) Wayne and Pam Osborn, some rights reserved (CC BY-NC), uploaded by Wayne and Pam Osborn",
+      "tags": [
+        "humpback whale",
+        "megaptera novaeangliae"
+      ],
+      "functions": [
+        "flow control",
+        "tubercles",
+        "maneuverability"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/octopus.jpg",
+      "common_name": "Octopus",
+      "scientific_name": "Octopus",
+      "title": "Octopus",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/47456",
+      "license": "cc-by",
+      "attribution": "(c) Don Loarie, some rights reserved (CC BY), uploaded by Don Loarie",
+      "tags": [
+        "octopus",
+        "octopus"
+      ],
+      "functions": [
+        "soft robotics",
+        "camouflage",
+        "distributed grip"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/cuttlefish.jpg",
+      "common_name": "Cuttlefish",
+      "scientific_name": "Sepiidae",
+      "title": "Cuttlefishes",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/67960",
+      "license": "cc-by-nc",
+      "attribution": "(c) Kimberly Tripp Randal, some rights reserved (CC BY-NC), uploaded by Kimberly Tripp Randal",
+      "tags": [
+        "cuttlefish",
+        "sepiidae"
+      ],
+      "functions": [
+        "camouflage",
+        "adaptive texture",
+        "color change"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/spider.jpg",
+      "common_name": "Spider",
+      "scientific_name": "Araneae",
+      "title": "Spiders",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/47118",
+      "license": "cc-by-nc",
+      "attribution": "(c) Craig Biegler, some rights reserved (CC BY-NC), uploaded by Craig Biegler",
+      "tags": [
+        "spider",
+        "araneae"
+      ],
+      "functions": [
+        "fiber strength",
+        "web structure",
+        "vibration sensing"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/beaver.jpg",
+      "common_name": "Beaver",
+      "scientific_name": "Castor canadensis",
+      "title": "American Beaver",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/43794",
+      "license": "",
+      "attribution": "(c) mikeyk730, all rights reserved",
+      "tags": [
+        "beaver",
+        "castor canadensis"
+      ],
+      "functions": [
+        "water management",
+        "material assembly",
+        "habitat engineering"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/termite.jpg",
+      "common_name": "Termite",
+      "scientific_name": "Termitoidae",
+      "title": "Termites",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/118903",
+      "license": "",
+      "attribution": "(c) Angella Moorehouse, all rights reserved, uploaded by Angella Moorehouse",
+      "tags": [
+        "termite",
+        "termitoidae"
+      ],
+      "functions": [
+        "passive ventilation",
+        "thermal regulation",
+        "porous structure"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/morpho-butterfly.jpg",
+      "common_name": "Morpho butterfly",
+      "scientific_name": "Morpho menelaus",
+      "title": "Menelaus Morpho",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/68756",
+      "license": "cc-by",
+      "attribution": "(c) Thomaz de Carvalho Callado, some rights reserved (CC BY), uploaded by Thomaz de Carvalho Callado",
+      "tags": [
+        "morpho butterfly",
+        "morpho menelaus"
+      ],
+      "functions": [
+        "structural color",
+        "lightweight surface",
+        "optics"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/bat.jpg",
+      "common_name": "Bat",
+      "scientific_name": "Amphibia",
+      "title": "Amphibians",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/20978",
+      "license": "cc-by-nc",
+      "attribution": "(c) Plana Baptiste, some rights reserved (CC BY-NC), uploaded by Plana Baptiste",
+      "tags": [
+        "bat",
+        "amphibia"
+      ],
+      "functions": [
+        "echolocation",
+        "folding wings",
+        "agile flight"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/falcon.jpg",
+      "common_name": "Falcon",
+      "scientific_name": "Fallopia convolvulus",
+      "title": "Black-bindweed",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/77129",
+      "license": "cc-by-nc",
+      "attribution": "(c) Nate Martineau, some rights reserved (CC BY-NC), uploaded by Nate Martineau",
+      "tags": [
+        "falcon",
+        "fallopia convolvulus"
+      ],
+      "functions": [
+        "high-speed flight",
+        "vision",
+        "aerodynamics"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/chameleon.jpg",
+      "common_name": "Chameleon",
+      "scientific_name": "Chamaeleo",
+      "title": "Typical Chameleons",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/32806",
+      "license": "cc-by-nc",
+      "attribution": "(c) Nicolas HELITAS, some rights reserved (CC BY-NC), uploaded by Nicolas HELITAS",
+      "tags": [
+        "chameleon",
+        "chamaeleo"
+      ],
+      "functions": [
+        "adaptive grip",
+        "vision",
+        "color change"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/elephant.jpg",
+      "common_name": "Elephant",
+      "scientific_name": "Elephantopus",
+      "title": "Elephant's Feet",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/119610",
+      "license": "cc0",
+      "attribution": "no rights reserved, uploaded by Dennis White",
+      "tags": [
+        "elephant",
+        "elephantopus"
+      ],
+      "functions": [
+        "flexible manipulation",
+        "thermal regulation",
+        "load support"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/snake.jpg",
+      "common_name": "Snake",
+      "scientific_name": "Squamata",
+      "title": "Snakes and Lizards",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/26172",
+      "license": "cc-by",
+      "attribution": "(c) Wynand Uys, some rights reserved (CC BY), uploaded by Wynand Uys",
+      "tags": [
+        "snake",
+        "squamata"
+      ],
+      "functions": [
+        "flexible locomotion",
+        "scales",
+        "friction control"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/limpet.jpg",
+      "common_name": "Limpet",
+      "scientific_name": "Patellogastropoda",
+      "title": "True Limpets",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/47679",
+      "license": "cc-by",
+      "attribution": "(c) Ken-ichi Ueda, some rights reserved (CC BY), uploaded by Ken-ichi Ueda",
+      "tags": [
+        "limpet",
+        "patellogastropoda"
+      ],
+      "functions": [
+        "adhesion",
+        "abrasion resistance",
+        "mineralized teeth"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/mussel.jpg",
+      "common_name": "Mussel",
+      "scientific_name": "Bivalvia",
+      "title": "Bivalves",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/47584",
+      "license": "cc-by-nc-sa",
+      "attribution": "(c) Matthew Connors, some rights reserved (CC BY-NC-SA), uploaded by Matthew Connors",
+      "tags": [
+        "mussel",
+        "bivalvia"
+      ],
+      "functions": [
+        "wet adhesion",
+        "fiber anchoring",
+        "wave resistance"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/abalone.jpg",
+      "common_name": "Abalone",
+      "scientific_name": "Haliotis",
+      "title": "Abalones",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/56651",
+      "license": "cc-by",
+      "attribution": "(c) Richard Parker, some rights reserved (CC BY)",
+      "tags": [
+        "abalone",
+        "haliotis"
+      ],
+      "functions": [
+        "impact resistance",
+        "layered nacre",
+        "toughness"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/boxfish.jpg",
+      "common_name": "Boxfish",
+      "scientific_name": "Balistoidei",
+      "title": "Triggerfishes, Boxfishes, and Filefishes",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/1303583",
+      "license": "cc-by-nc-sa",
+      "attribution": "(c) Fran\u00e7ois Libert, some rights reserved (CC BY-NC-SA), uploaded by Fran\u00e7ois Libert",
+      "tags": [
+        "boxfish",
+        "balistoidei"
+      ],
+      "functions": [
+        "stability",
+        "protected body",
+        "flow"
+      ]
+    },
+    {
+      "category": "animals",
+      "path": "animals/sea-urchin.jpg",
+      "common_name": "Sea urchin",
+      "scientific_name": "Echinozoa",
+      "title": "sea urchins and sea cucumbers",
+      "source": "iNaturalist",
+      "source_url": "https://www.inaturalist.org/taxa/774753",
+      "license": "cc-by",
+      "attribution": "(c) Erin McKittrick, some rights reserved (CC BY), uploaded by Erin McKittrick",
+      "tags": [
+        "sea urchin",
+        "echinozoa"
+      ],
+      "functions": [
+        "spines",
+        "modular shell",
+        "puncture protection"
+      ]
+    }
+  ]
+}

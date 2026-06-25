@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from google.genai import Client, types
 from asknature import asknature_biomimicry_options, asknature_search
 from product_images import product_image_search
+from local_fallback_images import animal_fallback_image
 
 # --- Pydantic Data Models ---
 class DeconstructReq(BaseModel):
@@ -366,7 +367,12 @@ def wikimedia_reference(req):
     }
 
 def biodiversity_reference(req):
-    return inaturalist_reference(req) or wikimedia_reference(req) or fallback_reference_svg(req)
+    return (
+        inaturalist_reference(req)
+        or wikimedia_reference(req)
+        or animal_fallback_image(req.organism, req.function)
+        or fallback_reference_svg(req)
+    )
 
 def generate_image(prompt, filename):
     path = image_dir / filename
@@ -1110,7 +1116,7 @@ def _choice_card(label, title, body, selected=False, tag=""):
 def _show_image(image_info, caption=""):
     if not image_info:
         return
-    url = str(image_info.get("image_url", ""))
+    url = str(image_info.get("local_path") or image_info.get("image_url", ""))
     if not url:
         return
     try:
