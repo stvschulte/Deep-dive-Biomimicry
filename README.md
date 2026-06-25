@@ -1,3 +1,14 @@
+---
+title: Deep Dive Biomimicry
+emoji: 🌿
+colorFrom: green
+colorTo: teal
+sdk: streamlit
+sdk_version: "1.41.1"
+app_file: streamlit_app.py
+pinned: false
+---
+
 # BioMimetix AI
 
 BioMimetix AI is a hosted Streamlit app for biomimicry exploration. The Streamlit app is the end-user frontend.
