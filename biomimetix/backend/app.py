@@ -663,9 +663,10 @@ _ORGANISMS = [
 # CSS — matching index.css palette exactly
 # ══════════════════════════════════════════════════════════════════════════════
 
+_FONTS = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">'
+
 _CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
 
 :root {
   --deep:   #07130a;
@@ -1141,6 +1142,7 @@ def _organism_cycle_html():
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.set_page_config(page_title="BioMimetix AI", page_icon="🌿", layout="wide")
+st.markdown(_FONTS, unsafe_allow_html=True)
 st.markdown(_CSS, unsafe_allow_html=True)
 
 # ── Session state ─────────────────────────────────────────────────────────────
