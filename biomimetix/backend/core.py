@@ -23,7 +23,7 @@ class BackendError(RuntimeError):
 class MissingGeminiKeyError(BackendError):
     def __init__(self):
         super().__init__(
-            "GEMINI_API_KEY is missing. Add it to biomimetix/backend/.env and restart the backend.",
+            "GEMINI_API_KEY is missing. Add it to Streamlit Secrets or biomimetix/backend/.env and restart the app.",
             status_code=503,
         )
 
@@ -72,6 +72,13 @@ class AskNatureSearchReq(BaseModel):
 load_dotenv(Path(__file__).with_name(".env"))
 
 api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    try:
+        import streamlit as st
+
+        api_key = st.secrets.get("GEMINI_API_KEY")
+    except Exception:
+        api_key = None
 model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 image_model_name = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
 client = Client(api_key=api_key) if api_key else None

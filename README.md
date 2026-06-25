@@ -1,51 +1,58 @@
 # BioMimetix AI
 
-BioMimetix AI is a local biomimicry exploration app with a React frontend and a FastAPI backend.
+BioMimetix AI is a hosted Streamlit app for biomimicry exploration. The Streamlit app is the end-user frontend.
 
 ## App Structure
 
-- `biomimetix/frontend`: the main visual React/Vite interface
-- `biomimetix/backend/api.py`: the HTTP API used by the React app
-- `biomimetix/backend/app.py`: optional legacy Streamlit interface
+- `streamlit_app.py`: Streamlit Community Cloud entrypoint
+- `biomimetix/backend/app.py`: Streamlit end-user interface
 - `biomimetix/backend/core.py`: shared biomimicry, Gemini, image, and research logic
+- `biomimetix/frontend`: optional React/Vite prototype
+- `biomimetix/backend/api.py`: optional FastAPI API for the React prototype
 
-## Environment
+## Streamlit Cloud Deployment
+
+Use these settings on Streamlit Community Cloud:
+
+- Main file path: `streamlit_app.py`
+- Python dependencies: root `requirements.txt`
+- Secrets:
+
+```toml
+GEMINI_API_KEY = "your_gemini_api_key_here"
+# Optional:
+# GEMINI_MODEL = "gemini-2.5-flash-lite"
+# GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
+```
+
+After changing secrets, reboot the app.
+
+## Run Streamlit Locally
 
 Create `biomimetix/backend/.env`:
 
 ```bash
 GEMINI_API_KEY=your_gemini_api_key_here
-# Optional:
-# GEMINI_MODEL=gemini-2.5-flash-lite
-# GEMINI_IMAGE_MODEL=gemini-2.5-flash-image
 ```
 
-The real `.env` file is ignored by git.
+Then run:
 
-## Run Locally
+```bash
+pip install -r requirements.txt
+streamlit run streamlit_app.py
+```
 
-Start the backend:
+## Optional React Prototype
+
+The React/Vite prototype is not the Streamlit-hosted frontend. To run it locally:
 
 ```bash
 cd biomimetix/backend
 python3 -m venv venv
 venv/bin/python -m pip install -r requirements.txt
 venv/bin/python -m uvicorn api:app --reload --host 127.0.0.1 --port 8000
-```
 
-Start the frontend in a second terminal:
-
-```bash
-cd biomimetix/frontend
+cd ../frontend
 npm install
 npm run dev
 ```
-
-Open `http://127.0.0.1:5173/`.
-
-## Health Checks
-
-- API health: `http://127.0.0.1:8000/api/health`
-- Generated images are served from `http://127.0.0.1:8000/generated_images/...`
-
-The React app shows whether the backend is reachable and whether Gemini is configured.
