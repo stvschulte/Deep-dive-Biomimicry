@@ -31,7 +31,6 @@ const HELMET_IMAGES = [
   '/images/fallback/product_helmets/helmet-2.jpg',
   '/images/fallback/product_helmets/helmet-3.jpg',
   '/images/fallback/product_helmets/helmet-4.jpg',
-  '/images/fallback/product_helmets/helmet-5.jpg',
 ];
 
 /* ── Framer Motion variants ── */
@@ -209,22 +208,27 @@ function App() {
 
   const analyzeProduct = () => runAction(async () => {
     if (!productName.trim()) return;
+    const helmetProduct = productName.toLowerCase().includes('helmet');
     const [parts, image] = await Promise.all([
       requestJson('deconstruct', { product: productName.trim() }),
-      requestJson('product-image', { product: productName.trim() }),
+      helmetProduct ? Promise.resolve(null) : requestJson('product-image', { product: productName.trim() }),
     ]);
     setBreakdown(parts);
-    setProductImage({
-      url: resolveImageUrl(image.image_url),
-      source: image.source,
-      sourceUrl: image.source_url,
-      searchUrl: image.search_url,
-      license: image.license,
-    });
+    if (helmetProduct) {
+      setProductImage({ url: HELMET_IMAGES[0], source: 'Preset library', sourceUrl: null, searchUrl: null, license: null });
+    } else {
+      setProductImage({
+        url: resolveImageUrl(image.image_url),
+        source: image.source,
+        sourceUrl: image.source_url,
+        searchUrl: image.search_url,
+        license: image.license,
+      });
+    }
     setSelectedFunction(null);
     setRejectedFunctions(new Set());
     setApprovedFunctions(new Set());
-    setHelmetImageIndex(0);
+    setHelmetImageIndex(helmetProduct ? 1 : 0);
     setStep(2);
   });
 
