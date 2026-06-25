@@ -56,6 +56,7 @@ class IdeateReq(BaseModel):
 class PromptReq(BaseModel):
     product: str
     concept: str
+    custom_concept: str = ""
 
 class ComponentItem(BaseModel):
     component: str
@@ -667,8 +668,9 @@ def ideate_concepts(req: IdeateReq):
         return None
 
 def generate_prompt(req: PromptReq):
+    concept_text = req.custom_concept.strip() or req.concept
     prompt = f"""
-    You are an AI image prompt specialist. Concept: "{req.concept}" for "{req.product}".
+    You are an AI image prompt specialist. Concept: "{concept_text}" for "{req.product}".
     Write a highly rigid text prompt for a 2D generative AI to visualize this physical biomimetic product.
     The prompt must describe only one product object and must be optimized for clean image-to-3D conversion.
     Do NOT output JSON. Output ONLY the prompt string.
@@ -682,7 +684,7 @@ def generate_prompt(req: PromptReq):
         if is_transient_error(e):
             return {
                 "prompt": (
-                    f"{req.concept} for {req.product}, biomimetic product design, organic but functional form, "
+                    f"{concept_text} for {req.product}, biomimetic product design, organic but functional form, "
                     "Pure white background, single object, isometric view, no shadows, high contrast silhouette, "
                     "centered composition, complete object visible, no text, no labels, no hands, no people."
                 )

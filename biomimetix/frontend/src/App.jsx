@@ -75,9 +75,11 @@ const STEPS = [
 ];
 
 const emptyEvaluation = {
-  failure: '',
-  lostNuance: '',
-  printFunction: '',
+  observation: '',
+  ideation: '',
+  digitalTranslation: '',
+  physicalTranslation: '',
+  finalResult: '',
   nextIteration: '',
 };
 
@@ -119,7 +121,7 @@ function App() {
   const [sketchDone, setSketchDone] = useState(false);
   const [concepts, setConcepts] = useState([]);
   const [selectedConcept, setSelectedConcept] = useState(null);
-  const [conceptRefined, setConceptRefined] = useState(false);
+  const [customConcept, setCustomConcept] = useState('');
   const [finalPrompt, setFinalPrompt] = useState('');
   const [promptUsed, setPromptUsed] = useState(false);
   const [stlCreated, setStlCreated] = useState(false);
@@ -309,18 +311,42 @@ function App() {
     });
     setConcepts(data);
     setSelectedConcept(null);
-    setConceptRefined(false);
+    setCustomConcept('');
     setStep(5);
   });
 
   const generatePrompt = () => runAction(async () => {
+    const conceptText = customConcept.trim() || selectedConcept?.concept_name || '';
     const data = await requestJson('prompt-gen', {
       product: productName,
-      concept: selectedConcept.concept_name,
+      concept: conceptText,
+      custom_concept: customConcept.trim(),
     });
     setFinalPrompt(data.prompt);
     setPromptUsed(false);
     setStep(6);
+  });
+
+  const reloadBiomimicry = () => runAction(async () => {
+    const data = await requestJson('biomimicry', {
+      product: productName,
+      function: selectedFunction.function,
+    });
+    setBiomimicryOptions(data);
+    setSelectedOrganism(null);
+    setOrganismImage(null);
+    setExplorationDone(false);
+  });
+
+  const redoPrompt = () => runAction(async () => {
+    const conceptText = customConcept.trim() || selectedConcept?.concept_name || '';
+    const data = await requestJson('prompt-gen', {
+      product: productName,
+      concept: conceptText,
+      custom_concept: customConcept.trim(),
+    });
+    setFinalPrompt(data.prompt);
+    setPromptUsed(false);
   });
 
   const redoProductImage = async (hint) => {
@@ -381,7 +407,7 @@ function App() {
     setSketchDone(false);
     setConcepts([]);
     setSelectedConcept(null);
-    setConceptRefined(false);
+    setCustomConcept('');
     setFinalPrompt('');
     setPromptUsed(false);
     setStlCreated(false);
@@ -503,6 +529,8 @@ function App() {
               explorationDone={explorationDone}
               setExplorationDone={setExplorationDone}
               onContinue={abstractPrinciples}
+              selectedFunction={selectedFunction}
+              onReload={reloadBiomimicry}
             />
           )}
 
@@ -514,6 +542,8 @@ function App() {
               setSelectedPrinciple={setSelectedPrinciple}
               sketchDone={sketchDone}
               setSketchDone={setSketchDone}
+              selectedOrganism={selectedOrganism}
+              selectedFunction={selectedFunction}
               onContinue={generateConcepts}
             />
           )}
@@ -523,8 +553,8 @@ function App() {
               concepts={concepts}
               selectedConcept={selectedConcept}
               setSelectedConcept={setSelectedConcept}
-              conceptRefined={conceptRefined}
-              setConceptRefined={setConceptRefined}
+              customConcept={customConcept}
+              setCustomConcept={setCustomConcept}
               onContinue={generatePrompt}
             />
           )}
@@ -535,6 +565,7 @@ function App() {
               promptUsed={promptUsed}
               setPromptUsed={setPromptUsed}
               onContinue={() => setStep(7)}
+              onRedo={redoPrompt}
             />
           )}
 
@@ -1005,7 +1036,7 @@ function BreakdownList({ items }) {
   );
 }
 
-function StepBiomimicry({ options, selectedOrganism, onSelect, organismImage, explorationDone, setExplorationDone, onContinue }) {
+function StepBiomimicry({ options, selectedOrganism, onSelect, organismImage, explorationDone, setExplorationDone, onContinue, selectedFunction, onReload }) {
   const pack = selectedOrganism?.exploration_pack;
   return (
     <>
@@ -1019,8 +1050,20 @@ function StepBiomimicry({ options, selectedOrganism, onSelect, organismImage, ex
         eyebrow="Step 3"
         title="Biomimicry: Nature Quest"
       >
-        Choose one organism, then complete an exploration pack before abstraction unlocks.
+        Discover how nature solves your locked function, then complete the outdoor observation before abstracting.
       </StepHeader>
+      {selectedFunction && (
+        <div className="locked-function-banner">
+          <span>Locked function</span>
+          <strong>{selectedFunction.function}</strong>
+        </div>
+      )}
+      <div className="biomimicry-reload-row">
+        <p className="functions-hint"><Sparkles size={13} /> 5 biological organisms that perform this function</p>
+        <button className="ghost-button reload-organisms-btn ripple-btn" onClick={onReload}>
+          <RefreshCw size={13} /> New suggestions
+        </button>
+      </div>
       <motion.div className="card-grid" variants={containerVariants} initial="initial" animate="animate">
         {options.map((option) => (
           <ChoiceCard
@@ -1041,13 +1084,14 @@ function StepBiomimicry({ options, selectedOrganism, onSelect, organismImage, ex
           checked={explorationDone}
           setChecked={setExplorationDone}
           onContinue={onContinue}
+          selectedFunction={selectedFunction}
         />
       )}
     </>
   );
 }
 
-function ExplorationPack({ organism, image, pack, checked, setChecked, onContinue }) {
+function ExplorationPack({ organism, image, pack, checked, setChecked, onContinue, selectedFunction }) {
   const watch = pack?.watch || [];
   const read = pack?.read || [];
   const act = pack?.act;
@@ -1067,15 +1111,23 @@ function ExplorationPack({ organism, image, pack, checked, setChecked, onContinu
         <p>{organism.rationale}</p>
         <ResourceSection icon={<Video />} title="Watch" items={watch} />
         <ResourceSection icon={<FileText />} title="Read" items={read} />
-        {act && (
-          <div className="quest-card">
-            <div><Eye size={20} /><strong>{act.title}</strong></div>
-            <p>{act.description}</p>
+        <div className="quest-card">
+          <div><Eye size={20} /><strong>{act?.title || 'Nature Quest'}</strong></div>
+          <p>
+            Step away from your screen and go outside for a walk around the building. Look closely at your surroundings
+            and search for natural objects or elements that fulfill the current function:{' '}
+            <strong>{selectedFunction?.function || act?.description}</strong>.
+            {' '}Take photos and make hand-drawn sketches of 2 or 3 of these objects. Ensure your sketches are schematic
+            and abstract. This exercise of abstracting the form language and function is a crucial step in translating
+            biological mechanisms into workable design principles. Observe with your own eyes how nature solves this
+            before reading the AI explanations.
+          </p>
+          {act?.checklist && (
             <ul>
-              {(act.checklist || []).map((item) => <li key={item}>{item}</li>)}
+              {act.checklist.map((item) => <li key={item}>{item}</li>)}
             </ul>
-          </div>
-        )}
+          )}
+        </div>
         <label className="gate-check">
           <input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} />
           I have explored these resources and made my own observations.
@@ -1103,7 +1155,7 @@ function ResourceSection({ icon, title, items }) {
   );
 }
 
-function StepPrinciples({ principles, sketchPack, selectedPrinciple, setSelectedPrinciple, sketchDone, setSketchDone, onContinue }) {
+function StepPrinciples({ principles, sketchPack, selectedPrinciple, setSelectedPrinciple, sketchDone, setSketchDone, selectedOrganism, selectedFunction, onContinue }) {
   return (
     <>
       <StepHeader
@@ -1117,7 +1169,9 @@ function StepPrinciples({ principles, sketchPack, selectedPrinciple, setSelected
         eyebrow="Step 4"
         title="Principle Abstraction"
       >
-        Select one abstract principle, then sketch it before ideation becomes available.
+        {selectedOrganism && selectedFunction
+          ? `These are 3 ways the ${selectedOrganism.organism} performs "${selectedFunction.function}". Select one abstract principle to guide your ideation.`
+          : 'Select one abstract principle, then sketch it before ideation becomes available.'}
       </StepHeader>
       <motion.div className="card-grid" variants={containerVariants} initial="initial" animate="animate">
         {principles.map((principle) => (
@@ -1130,11 +1184,18 @@ function StepPrinciples({ principles, sketchPack, selectedPrinciple, setSelected
           />
         ))}
       </motion.div>
+      <div className="sketch-task-card">
+        <div className="sketch-task-icon"><Pencil size={18} /></div>
+        <div>
+          <strong>Sketch task</strong>
+          <p>Grab a pen and sketch these mechanisms abstractly.</p>
+        </div>
+      </div>
       <SketchGate sketchPack={sketchPack} checked={sketchDone} setChecked={setSketchDone} />
       <GateAction
-        ready={Boolean(selectedPrinciple && sketchDone)}
+        ready={Boolean(selectedPrinciple)}
         label="Move to ideation"
-        disabledLabel="Select a principle and complete the sketch gate"
+        disabledLabel="Select a principle first"
         onClick={onContinue}
       />
     </>
@@ -1161,52 +1222,82 @@ function SketchGate({ sketchPack, checked, setChecked }) {
   );
 }
 
-function StepIdeation({ concepts, selectedConcept, setSelectedConcept, conceptRefined, setConceptRefined, onContinue }) {
+function StepIdeation({ concepts, selectedConcept, setSelectedConcept, customConcept, setCustomConcept, onContinue }) {
+  const canContinue = Boolean(selectedConcept || customConcept.trim());
   return (
     <>
       <StepHeader icon={<Sparkles />} eyebrow="Step 5" title="Ideation and Creation">
-        Select one concept. Before visualization, pause and refine what must remain physically testable.
+        Select one AI concept or write your own to guide the visual prompt.
       </StepHeader>
-      <motion.div className="card-grid two" variants={containerVariants} initial="initial" animate="animate">
-        {concepts.map((concept) => (
-          <ChoiceCard
-            key={concept.concept_name}
-            active={selectedConcept?.concept_name === concept.concept_name}
-            onClick={() => setSelectedConcept(concept)}
-            title={concept.concept_name}
-            text={concept.description}
+      <div className="ideation-layout">
+        <motion.div className="card-grid two" variants={containerVariants} initial="initial" animate="animate">
+          {concepts.map((concept) => (
+            <ChoiceCard
+              key={concept.concept_name}
+              active={selectedConcept?.concept_name === concept.concept_name}
+              onClick={() => { setSelectedConcept(concept); setCustomConcept(''); }}
+              title={concept.concept_name}
+              text={concept.description}
+            />
+          ))}
+        </motion.div>
+        <div className="custom-concept-panel">
+          <span className="custom-concept-label"><Pencil size={13} /> Or write your own concept</span>
+          <textarea
+            className="custom-concept-textarea"
+            value={customConcept}
+            onChange={(e) => { setCustomConcept(e.target.value); if (e.target.value.trim()) setSelectedConcept(null); }}
+            placeholder="Describe your own concept idea to guide the AI image prompt…"
+            rows={7}
           />
-        ))}
-      </motion.div>
-      <label className="gate-check standalone">
-        <input type="checkbox" checked={conceptRefined} onChange={(event) => setConceptRefined(event.target.checked)} />
-        I have mentally refined this concept and identified what should be tested physically.
-      </label>
+          {customConcept.trim() && (
+            <span className="custom-concept-active">Your concept will be used for the prompt</span>
+          )}
+        </div>
+      </div>
       <GateAction
-        ready={Boolean(selectedConcept && conceptRefined)}
-        label="Generate strict 2D prompt"
-        disabledLabel="Select and refine a concept"
+        ready={canContinue}
+        label="Generate 2D prompt"
+        disabledLabel="Select a concept or write your own"
         onClick={onContinue}
       />
     </>
   );
 }
 
-function StepPrompt({ prompt, promptUsed, setPromptUsed, onContinue }) {
+function StepPrompt({ prompt, promptUsed, setPromptUsed, onContinue, onRedo }) {
+  const [redoLoading, setRedoLoading] = useState(false);
+
+  const handleRedo = async () => {
+    setRedoLoading(true);
+    try { await onRedo(); } finally { setRedoLoading(false); }
+  };
+
   return (
     <>
       <StepHeader icon={<Clipboard />} eyebrow="Step 6" title="2D Image Prompt">
-        Copy this strict prompt into your external image generator. Keep the output clean for 3D conversion.
+        The AI generated this visual prompt based on your selected concept.
       </StepHeader>
+      <p className="prompt-instructions">
+        Copy this prompt into an AI image generator (for example, Gemini or ChatGPT visual image generation).
+      </p>
       <div className="prompt-box">{prompt}</div>
-      <button className="secondary-button" onClick={() => navigator.clipboard.writeText(prompt)}>
-        Copy prompt
-      </button>
-      <label className="gate-check standalone">
-        <input type="checkbox" checked={promptUsed} onChange={(event) => setPromptUsed(event.target.checked)} />
-        I have copied or used the prompt externally.
-      </label>
-      <GateAction ready={promptUsed} label="Continue to 3D pathway" disabledLabel="Use the 2D prompt first" onClick={onContinue} />
+      <div className="prompt-actions">
+        <button className="secondary-button" onClick={() => navigator.clipboard.writeText(prompt)}>
+          <Clipboard size={13} /> Copy prompt
+        </button>
+        <button className="secondary-button" onClick={handleRedo} disabled={redoLoading}>
+          <RefreshCw size={13} /> {redoLoading ? 'Generating…' : 'Redo / Refine prompt'}
+        </button>
+      </div>
+      {!promptUsed && (
+        <button className="confirm-copy-btn ripple-btn" onClick={(e) => { createRipple(e); setPromptUsed(true); }}>
+          <Check size={15} /> Yes, I have copied it
+        </button>
+      )}
+      {promptUsed && (
+        <GateAction ready={true} label="Continue to 3D pathway" disabledLabel="" onClick={onContinue} />
+      )}
     </>
   );
 }
@@ -1245,26 +1336,36 @@ function StepEvaluate({ evaluation, setEvaluation, onReset }) {
   return (
     <>
       <StepHeader icon={<Check />} eyebrow="Step 8" title="Evaluate">
-        Log what failed. Biomimicry improves when the physical prototype argues back.
+        Reflect on your full journey. Your honest answers become the seed of the next iteration.
       </StepHeader>
       <div className="evaluation-form">
         <Question
-          label="How did the translation from nature to AI to physical object fail?"
-          value={evaluation.failure}
-          onChange={(value) => update('failure', value)}
+          label="(Steps 3 & 4: Observation) How did the manual sketching and outdoor observation influence your understanding of the biological mechanism compared to just watching the videos?"
+          value={evaluation.observation}
+          onChange={(value) => update('observation', value)}
         />
         <Question
-          label="What nuances of the biological organism were lost?"
-          value={evaluation.lostNuance}
-          onChange={(value) => update('lostNuance', value)}
+          label="(Step 5: Ideation) To what extent did the AI-generated ideations align with your own physical sketches and intuition?"
+          value={evaluation.ideation}
+          onChange={(value) => update('ideation', value)}
         />
         <Question
-          label="Did the 3D print function as expected?"
-          value={evaluation.printFunction}
-          onChange={(value) => update('printFunction', value)}
+          label="(Steps 6 & 7: Digital Translation) What crucial nuance or structural detail of the biological organism was lost during the AI's translation to a 2D image and 3D model?"
+          value={evaluation.digitalTranslation}
+          onChange={(value) => update('digitalTranslation', value)}
         />
         <Question
-          label="What should change in the next iteration?"
+          label="(Steps 7 & 8: Physical Translation) How did the transition from a 2D generated image to a physical 3D object alter the feasibility of your concept?"
+          value={evaluation.physicalTranslation}
+          onChange={(value) => update('physicalTranslation', value)}
+        />
+        <Question
+          label="(Overall Result) How well did the final physical 3D print fulfill the originally selected mechanical function?"
+          value={evaluation.finalResult}
+          onChange={(value) => update('finalResult', value)}
+        />
+        <Question
+          label="(Next Iteration) Based on this outcome, what should change in your prompting, function selection, or offline process in the next iteration?"
           value={evaluation.nextIteration}
           onChange={(value) => update('nextIteration', value)}
         />
