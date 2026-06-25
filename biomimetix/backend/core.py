@@ -82,6 +82,10 @@ if not api_key:
 model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 image_model_name = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
 client = Client(api_key=api_key) if api_key else None
+if client is not None:
+    print(f"[BioMimetix] Gemini ready — model: {model_name}", flush=True)
+else:
+    print("[BioMimetix] WARNING: GEMINI_API_KEY not found — Gemini features disabled", flush=True)
 image_dir = Path(__file__).parent / "generated_images"
 image_dir.mkdir(exist_ok=True)
 
