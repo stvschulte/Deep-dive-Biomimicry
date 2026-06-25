@@ -1,1 +1,7 @@
--r biomimetix/backend/requirements.txt
+streamlit>=1.41,<2
+python-dotenv
+pydantic
+google-genai
+pillow
+fastapi
+uvicorn

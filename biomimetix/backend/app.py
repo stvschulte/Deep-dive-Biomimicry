@@ -680,8 +680,11 @@ _CSS = """
   --bio2:   #6ed688;
 }
 
-/* Page */
-html, body, [data-testid="stAppViewContainer"] {
+/* Page — multiple selectors for compatibility across Streamlit versions */
+html, body,
+[data-testid="stAppViewContainer"],
+.stApp,
+.main                           {
   background:
     radial-gradient(ellipse at 40% -5%,  rgba(63,207,196,0.20), transparent 44%),
     radial-gradient(ellipse at 90% 20%,  rgba(200,151,61,0.13),  transparent 38%),
@@ -691,10 +694,21 @@ html, body, [data-testid="stAppViewContainer"] {
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
   color: var(--text) !important;
 }
-[data-testid="stHeader"]  { background: transparent !important; }
-[data-testid="stToolbar"] { display: none; }
-#MainMenu, footer         { display: none; }
-[data-testid="stMainBlockContainer"] { padding-top: 12px !important; max-width: 1240px; }
+/* Transparent header — multiple selectors */
+[data-testid="stHeader"],
+header[data-testid="stHeader"]      { background: transparent !important; }
+/* Hide toolbar / hamburger / footer */
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+#MainMenu, footer, .css-1rs6os     { display: none !important; }
+/* Sidebar — hide it */
+section[data-testid="stSidebar"],
+[data-testid="stSidebar"]           { display: none !important; }
+/* Main content max-width */
+[data-testid="stMainBlockContainer"],
+.block-container,
+.css-18e3th9,
+.css-1d391kg                        { padding-top: 12px !important; max-width: 1240px !important; padding-left: 2rem !important; padding-right: 2rem !important; }
 
 /* Typography */
 h1,h2,h3,h4 { color: var(--text) !important; font-family: 'Inter', sans-serif !important; }
